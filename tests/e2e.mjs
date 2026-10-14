@@ -150,6 +150,16 @@ try {
     assert.match(await getCode(), /sum\(1 for n in numbers/);
   });
 
+  await step("debug log is saved to debug/<uid> and keeps the previous session", async () => {
+    const doc = await page.evaluate(() => JSON.parse(localStorage.getItem("codinghost-dev-db"))["debug/dev-user"]);
+    assert.ok(doc && doc.current && doc.previous, "current and previous sessions");
+    const kinds = new Set(doc.previous.entries.map((e) => e.kind));
+    for (const k of ["run_start", "run_end", "run_timeout", "worker_restart", "python_status"]) assert.ok(kinds.has(k), "previous has " + k);
+    await page.click("#debug-toggle");
+    await page.locator("#debug-meta", { hasText: "Saved to debug/dev-user" }).waitFor({ timeout: 8000 });
+    await page.click("#debug-toggle");
+  });
+
   await step("show solution after 3 failed submits, then the plan completes", async () => {
     for (let n = 2; n <= 5; n++) {
       await page.locator(".step", { hasText: String(n) }).click();

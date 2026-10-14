@@ -224,6 +224,9 @@
   .recap li { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); align-items: baseline; flex-wrap: wrap; }
   .recap li:first-child { border-top: 0; }
 
+  .debug-foot { padding-block: 0 32px; display: grid; gap: 10px; justify-items: start; }
+  .debug-panel { width: 100%; display: grid; gap: 10px; }
+  .debug-panel .term { max-height: 360px; font-size: 12px; }
   .toast {
     position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -278,6 +281,18 @@
   </div>
 </header>
 <main class="wrap" id="view"></main>
+<footer class="wrap debug-foot">
+  <button class="btn ghost" id="debug-toggle" type="button" aria-expanded="false" aria-controls="debug-panel">Debug log</button>
+  <section class="panel debug-panel" id="debug-panel" hidden>
+    <div class="row">
+      <h3>Debug log</h3>
+      <span class="spacer"></span>
+      <button class="btn secondary" id="debug-copy" type="button">Copy log</button>
+    </div>
+    <p class="muted" id="debug-meta"></p>
+    <pre class="term" id="debug-lines"></pre>
+  </section>
+</footer>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <!-- The test harness. It runs inside Pyodide; tests/harness.test.mjs extracts it from here. -->
@@ -446,6 +461,8 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
   const PYODIDE_BASE = new URL("pyodide/", location.href).href;
   const HARNESS = document.getElementById("py-harness").textContent;
   const DEV = !(window.claude && window.claude.use) && new URLSearchParams(location.search).has("dev");
+  // ?dev&main skips the worker, to reproduce the main-thread fallback locally.
+  const FORCE_MAIN = DEV && new URLSearchParams(location.search).has("main");
 
   /* ================================================================
    * helpers
@@ -518,6 +535,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
 
   let toastTimer = null;
   function toast(message) {
+    if (typeof dbg !== "undefined") dbg.log("toast", { message });
     const el = document.getElementById("toast");
     el.textContent = message;
     el.hidden = false;
@@ -534,6 +552,136 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
     if (!a.startsWith("(")) return fn + "(" + a + ")";
     return fn + a.replace(/,\s*\)$/, ")");
   }
+
+  /* ================================================================
+   * dbg: debug log, saved to db at debug/<uid> so Claude in chat can read it
+   * ================================================================ */
+  const dbg = (() => {
+    const SID = newId("s");
+    const STARTED = new Date().toISOString();
+    const MAX_ENTRIES = 300;
+    const MAX_DOC_CHARS = 200000; // db documents cap at 256 KiB
+    const entries = [];
+    const listeners = new Set();
+    let db = null;
+    let path = null;
+    let previous = null;
+    let dirty = false;
+    let writing = null;
+    let lastTick = Date.now();
+    let lastStallLog = 0;
+    let savedAt = null;
+    let saveError = null;
+
+    const env = {
+      ua: navigator.userAgent,
+      origin: location.origin,
+      dev: DEV,
+      cores: navigator.hardwareConcurrency || null,
+      memory_gb: navigator.deviceMemory || null,
+      viewport: innerWidth + "x" + innerHeight,
+    };
+
+    function clip(value, n) {
+      const s = typeof value === "string" ? value : JSON.stringify(value);
+      return s && s.length > n ? s.slice(0, n) + "…[" + s.length + " chars]" : s;
+    }
+
+    function log(kind, data) {
+      const entry = Object.assign({ t: new Date().toISOString(), kind }, data || {});
+      for (const k of Object.keys(entry)) if (typeof entry[k] === "string") entry[k] = clip(entry[k], 2000);
+      entries.push(entry);
+      if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
+      dirty = true;
+      listeners.forEach((fn) => fn(entry));
+    }
+
+    function snapshot() {
+      const current = { session_id: SID, started_at: STARTED, last_beat: new Date(lastTick).toISOString(), env, entries: entries.slice() };
+      const doc = { current, previous, updated_at: new Date().toISOString() };
+      while (JSON.stringify(doc).length > MAX_DOC_CHARS) {
+        if (previous && previous.entries && previous.entries.length > 20) previous.entries.splice(0, 20);
+        else if (current.entries.length > 20) current.entries.splice(0, 20);
+        else break;
+      }
+      return doc;
+    }
+
+    // One write at a time; a log entry during a write is picked up by the next one.
+    async function flush() {
+      if (!db) return;
+      while (writing) await writing;
+      if (!dirty) return;
+      dirty = false;
+      writing = db.doc(path).set(snapshot())
+        .then(() => { savedAt = new Date(); saveError = null; })
+        .catch((e) => { dirty = true; saveError = (e && (e.code || e.message)) || String(e); console.info("CodingHost debug log not saved:", saveError); })
+        .finally(() => { writing = null; });
+      return writing;
+    }
+
+    // Before code runs on the main thread the page may freeze, so the run_start entry
+    // must reach db first. Capped so a slow db never delays a run by more than limitMs.
+    function flushNow(limitMs) {
+      return Promise.race([flush(), new Promise((r) => setTimeout(r, limitMs))]);
+    }
+
+    // The previous session's log survives this load, because a frozen tab is usually reloaded.
+    async function attach(dbNs, uid) {
+      db = dbNs;
+      path = "debug/" + uid;
+      try {
+        const snap = await db.doc(path).get();
+        // Copy: saved documents come back read-only, and snapshot() trims previous.entries in place.
+        const old = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null;
+        if (old && old.current) {
+          previous = old.current;
+          previous.entries = (previous.entries || []).slice(-150);
+        }
+      } catch (e) {
+        log("debug_read_failed", { error: (e && (e.code || e.message)) || String(e) });
+      }
+      log("debug_attached", { path, previous_session: previous ? previous.session_id : null });
+      await flush();
+      setInterval(() => { if (dirty) flush(); }, 3000);
+    }
+
+    // A late timer tick means the main thread was blocked (Python on the main thread, or a JS loop).
+    setInterval(() => {
+      const now = Date.now();
+      const gap = now - lastTick;
+      lastTick = now;
+      if (gap > 2500 && now - lastStallLog > 1000) {
+        lastStallLog = now;
+        log("main_thread_stall", { blocked_ms: gap - 1000, hidden: document.hidden });
+      }
+    }, 1000);
+
+    addEventListener("error", (e) => log("window_error", { message: e.message, source: e.filename, line: e.lineno, col: e.colno, stack: e.error && e.error.stack }));
+    addEventListener("unhandledrejection", (e) => log("unhandled_rejection", { reason: (e.reason && (e.reason.stack || e.reason.message || e.reason.code)) || String(e.reason) }));
+    document.addEventListener("securitypolicyviolation", (e) => log("csp_violation", { directive: e.effectiveDirective, blocked: e.blockedURI }));
+    document.addEventListener("visibilitychange", () => log("visibility", { hidden: document.hidden }));
+    for (const level of ["warn", "error"]) {
+      const original = console[level].bind(console);
+      console[level] = (...args) => {
+        log("console_" + level, { message: args.map((a) => (a instanceof Error ? a.stack || a.message : typeof a === "string" ? a : clip(a, 500))).join(" ") });
+        original(...args);
+      };
+    }
+
+    return {
+      log,
+      attach,
+      flushNow,
+      sessionId: SID,
+      get path() { return path; },
+      get savedAt() { return savedAt; },
+      get saveError() { return saveError; },
+      export() { return snapshot(); },
+      get entries() { return entries; },
+      onEntry(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    };
+  })();
 
   /* ================================================================
    * runner: Pyodide in a Web Worker, main-thread fallback
@@ -589,6 +737,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
 
     function setStatus(state, detail) {
       status = { state, detail: detail || "", mode };
+      dbg.log("python_status", { state, detail: detail || "", mode, since_load_ms: Math.round(performance.now()) });
       listeners.forEach((fn) => {
         try { fn(status); } catch (e) { console.error("CodingHost: status listener failed", e); }
       });
@@ -614,6 +763,14 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
         if (e.data.type !== "result") return;
         const done = pending.get(e.data.id);
         if (done) { pending.delete(e.data.id); done(JSON.parse(e.data.json)); }
+      };
+      // Without this, a crash after load leaves the run waiting for its timeout.
+      w.onerror = (e) => {
+        dbg.log("worker_crash", { message: e.message || "unknown", pending: pending.size });
+        const msg = "Runner error: the Python worker crashed (" + (e.message || "unknown") + ")";
+        for (const done of pending.values()) done({ stdout: "", stderr: "", results: [], error: msg, crashed: true });
+        pending.clear();
+        restartWorker();
       };
       worker = w;
       mode = "worker";
@@ -641,12 +798,15 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
       setStatus("loading");
       ready = (async () => {
         try {
+          if (FORCE_MAIN) throw new Error("worker skipped (?main)");
           await startWorker();
         } catch (workerErr) {
+          dbg.log("worker_failed", { error: workerErr.message });
           console.warn("CodingHost: worker runner failed, using the main thread.", workerErr);
           try {
             await startMain();
           } catch (mainErr) {
+            dbg.log("main_thread_failed", { error: mainErr.message, stack: mainErr.stack });
             setStatus("failed", mainErr.message);
             throw mainErr;
           }
@@ -658,6 +818,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
     }
 
     function restartWorker() {
+      dbg.log("worker_restart", {});
       if (worker) worker.terminate();
       worker = null;
       pending.clear();
@@ -675,9 +836,25 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
     const failResult = (msg, ms) => ({ stdout: "", stderr: "", results: [], error_line: null, timed_out: false, ms, error: msg });
     let stage = "idle";
 
+    function logEnd(id, res) {
+      const results = res.results || [];
+      dbg.log("run_end", {
+        run: id, mode, ms: Math.round(res.ms || 0),
+        error: res.error ? res.error.split("\n").slice(-1)[0] : null,
+        timed_out: !!res.timed_out,
+        passed: results.filter((r) => r.status === "pass").length,
+        failed: results.filter((r) => r.status !== "pass").length,
+        stdout_chars: (res.stdout || "").length,
+      });
+    }
+
     // One run at a time. Resolves with the harness result, never rejects unless Python failed to load.
     // Every wait below is capped, so a run that went wrong ends with a message instead of hanging.
-    function run(code, fn, tests, timeoutMs = RUN_TIMEOUT_MS) {
+    // meta ({purpose, exercise}) only labels the debug log.
+    function run(code, fn, tests, timeoutMs = RUN_TIMEOUT_MS, meta = {}) {
+      const id = ++seq;
+      const queuedAt = performance.now();
+      dbg.log("run_queued", { run: id, purpose: meta.purpose || "run", exercise: meta.exercise || null, fn, tests: tests.length, python: status.state });
       const prev = queue;
       const job = (async () => {
         stage = "waiting for an earlier run to finish";
@@ -685,24 +862,35 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
         stage = "waiting for Python to load";
         await Promise.race([ready, sleep(LOAD_TIMEOUT_MS).then(() => { throw new Error("Python did not finish loading."); })]);
         const t0 = performance.now();
+        dbg.log("run_start", { run: id, mode, waited_ms: Math.round(t0 - queuedAt), timeout_ms: timeoutMs, code });
         if (mode === "main") {
           stage = "running tests on the main thread";
+          await dbg.flushNow(1500);
           await sleep(20); // let the UI paint "Running" first
-          const res = JSON.parse(mainRun(code, fn, JSON.stringify(tests), timeoutMs / 1000));
+          let res;
+          try {
+            res = JSON.parse(mainRun(code, fn, JSON.stringify(tests), timeoutMs / 1000));
+          } catch (e) {
+            // A Pyodide fatal error (e.g. stack overflow) lands here; Pyodide is unusable after it.
+            dbg.log("run_throw", { run: id, error: (e && (e.stack || e.message)) || String(e) });
+            res = failResult("Runner error: " + ((e && e.message) || e));
+          }
           res.ms = performance.now() - t0;
+          logEnd(id, res);
           return res;
         }
         stage = "waiting for the Python worker to answer";
         return new Promise((resolve) => {
-          const id = ++seq;
           let timer = null;
           const finish = (res) => {
             clearTimeout(timer);
             pending.delete(id);
             res.ms = performance.now() - t0;
+            logEnd(id, res);
             resolve(res);
           };
           timer = setTimeout(() => {
+            dbg.log("run_timeout", { run: id, ms: timeoutMs });
             finish(timeoutResult(timeoutMs)); // settle first, then restart, so a restart problem cannot leave the run hanging
             try { restartWorker(); } catch (e) { console.error("CodingHost: worker restart failed", e); setStatus("failed", (e && e.message) || String(e)); }
           }, timeoutMs);
@@ -747,7 +935,9 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
     const KEY = "codinghost-dev-db";
     const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { return {}; } };
     const save = (all) => { try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* ignore */ } };
-    const snap = (path, data) => ({ id: path.split("/").pop(), exists: data !== undefined, data: () => (data === undefined ? undefined : JSON.parse(JSON.stringify(data))) });
+    // Frozen like the real db, so code that edits loaded data in place fails here too.
+    const freeze = (v) => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+    const snap = (path, data) => ({ id: path.split("/").pop(), exists: data !== undefined, data: () => (data === undefined ? undefined : freeze(JSON.parse(JSON.stringify(data)))) });
     const db = {
       doc(path) {
         return {
@@ -862,6 +1052,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
 
   function dbErrorMessage(e) {
     const code = e && e.code;
+    dbg.log("db_error", { code: code || null, message: (e && e.message) || String(e) });
     if (code === "quota_exceeded") return "Storage is full. Your latest change was not saved.";
     if (code === "not_granted" || code === "revoked") return "This page lost access to your saved data. Reload to allow it again.";
     if (code === "unavailable" || code === "resource_exhausted") return "Saving failed for a moment. Your next change will try again.";
@@ -1010,6 +1201,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
 
   function aiErrorMessage(e) {
     const code = e && e.code;
+    dbg.log("ai_error", { code: code || null, message: (e && e.message) || String(e) });
     if (code === "not_granted") return "Claude access was declined for this page. Reload the page to allow it.";
     if (code === "rate_limited" || code === "queue_overflow") return "Slow down, try again in a minute.";
     if (code === "invalid_json") return "Claude's reply was not usable plan data. Try again.";
@@ -1096,7 +1288,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
   async function checkExercise(ex) {
     const problems = exerciseProblems(ex);
     if (problems.length) return problems.join(" ");
-    const res = await runner.run(ex.reference_solution, ex.function_name, ex.tests, 8000);
+    const res = await runner.run(ex.reference_solution, ex.function_name, ex.tests, 8000, { purpose: "validate", exercise: ex.id || ex.title });
     const ok = !res.error && res.results.length === ex.tests.length && res.results.every((r) => r.status === "pass");
     return ok ? null : failureText(res);
   }
@@ -1185,6 +1377,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     S.gen = null;
     editor = null;
     setCrumb("");
+    dbg.log("view", { view: "home" });
     renderHome();
     if (S.blocked || !S.caps) return;
     try {
@@ -1286,6 +1479,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
    * views: generating
    * ================================================================ */
   async function startGeneration(topic, level, count) {
+    dbg.log("view", { view: "generating", topic, level, count });
     const controller = new AbortController();
     let phase = "ai";
     S.gen = { topic, level, count, controller, steps: [{ label: "Claude writes " + count + " exercises", sub: "Waiting for Claude", state: "active" }], error: null };
@@ -1389,6 +1583,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     S.confirm = null;
     if (S.progress.current_index !== i) { S.progress.current_index = i; saveProgressSoon(); }
     const ex = S.plan.exercises[i];
+    dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
     setCrumb(S.plan.topic + " · " + (i + 1) + " / " + S.plan.exercises.length);
     viewEl.textContent = "";
 
@@ -1555,9 +1750,12 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     let watchdog = null;
     try {
       res = await Promise.race([
-        runner.run(code, ex.function_name, tests),
+        runner.run(code, ex.function_name, tests, RUN_TIMEOUT_MS, { purpose: isSubmit ? "submit" : "run", exercise: ex.id }),
         new Promise((resolve) => {
-          watchdog = setTimeout(() => resolve({ error: "The test runner did not answer (stuck while " + runner.stage + "). Reload the page and try again.", results: [], stdout: "", stderr: "" }), RUN_TIMEOUT_MS + 20000);
+          watchdog = setTimeout(() => {
+            dbg.log("run_watchdog", { stage: runner.stage });
+            resolve({ error: "The test runner did not answer (stuck while " + runner.stage + "). Reload the page and try again.", results: [], stdout: "", stderr: "" });
+          }, RUN_TIMEOUT_MS + 20000);
         }),
       ]);
     } catch (e) {
@@ -1747,6 +1945,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     const ex = S.plan.exercises[S.index];
     const st = exState(ex);
     const level = Math.min((st.hints_used || 0) + 1, 3);
+    dbg.log("help", { exercise: ex.id, level, question: !!question });
     const hint = { level, question, text: "", streaming: true, error: null };
     (S.hints[ex.id] = S.hints[ex.id] || []).push(hint);
     S.helping = true;
@@ -1824,6 +2023,7 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     renderHome();
     runner.start();
     const caps = await resolveCaps();
+    dbg.log("caps", { sample: !!caps.sample, db: !!caps.db, user: !!caps.user });
     if (!caps.db) {
       S.blocked = window.claude && window.claude.use
         ? { title: "Sign in to save your progress", body: "CodingHost stores your plans and progress in your claude.ai account. Sign in to claude.ai and open this page again." }
@@ -1841,9 +2041,69 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     S.caps = caps;
     S.uid = uid;
     store.init(caps.db, uid);
+    dbg.attach(caps.db, uid);
     ai.init(caps.sample);
     await goHome();
   }
+
+  /* ================================================================
+   * debug panel
+   * ================================================================ */
+  (function debugPanel() {
+    const toggle = document.getElementById("debug-toggle");
+    const panel = document.getElementById("debug-panel");
+    const lines = document.getElementById("debug-lines");
+    const meta = document.getElementById("debug-meta");
+    let pending = false;
+
+    function line(e) {
+      const time = e.t.slice(11, 23);
+      const rest = Object.entries(e)
+        .filter(([k]) => k !== "t" && k !== "kind")
+        .map(([k, v]) => k + "=" + (typeof v === "string" ? JSON.stringify(v.length > 120 ? v.slice(0, 120) + "…" : v) : JSON.stringify(v)))
+        .join(" ");
+      return time + "  " + e.kind + (rest ? "  " + rest : "");
+    }
+
+    function render() {
+      pending = false;
+      if (panel.hidden) return;
+      const st = runner.status;
+      const saved = dbg.path
+        ? (dbg.saveError ? "Not saved: " + dbg.saveError : dbg.savedAt ? "Saved to " + dbg.path + " at " + dbg.savedAt.toLocaleTimeString() : "Saving to " + dbg.path + "…")
+        : "Not saved yet (waiting for sign-in).";
+      meta.textContent = "Session " + dbg.sessionId + " · Python " + st.state + (st.mode ? " (" + st.mode + ")" : "") + " · " + dbg.entries.length + " entries. " + saved + " Claude in chat can read this log.";
+      lines.textContent = dbg.entries.slice(-120).map(line).join("\n");
+      lines.scrollTop = lines.scrollHeight;
+    }
+
+    function setOpen(open) {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.textContent = open ? "Hide debug log" : "Debug log";
+      render();
+    }
+
+    toggle.addEventListener("click", () => setOpen(panel.hidden));
+    dbg.onEntry(() => { if (!pending && !panel.hidden) { pending = true; requestAnimationFrame(render); } });
+    setInterval(() => { if (!panel.hidden) render(); }, 3000);
+    document.getElementById("debug-copy").addEventListener("click", async (ev) => {
+      const text = JSON.stringify(dbg.export(), null, 2);
+      try {
+        await navigator.clipboard.writeText(text);
+        ev.target.textContent = "Copied";
+      } catch (e) {
+        lines.textContent = text;
+        const range = document.createRange();
+        range.selectNodeContents(lines);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        ev.target.textContent = "Selected, press Ctrl+C";
+      }
+      setTimeout(() => { ev.target.textContent = "Copy log"; }, 2500);
+    });
+    if (location.hash === "#debug") setOpen(true);
+  })();
 
   boot();
 })();

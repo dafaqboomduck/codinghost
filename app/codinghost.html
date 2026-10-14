@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>CodingHost</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -588,7 +589,9 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
 
     function setStatus(state, detail) {
       status = { state, detail: detail || "", mode };
-      listeners.forEach((fn) => fn(status));
+      listeners.forEach((fn) => {
+        try { fn(status); } catch (e) { console.error("CodingHost: status listener failed", e); }
+      });
     }
 
     function spawnWorker() {
@@ -658,9 +661,9 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
       if (worker) worker.terminate();
       worker = null;
       pending.clear();
-      setStatus("loading");
       ready = startWorker().then(() => setStatus("ready"), (e) => { setStatus("failed", e.message); throw e; });
       ready.catch(() => {});
+      setStatus("loading");
     }
 
     const timeoutResult = (ms) => ({
@@ -668,32 +671,49 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
       error: "TimeoutError: the code ran longer than " + ms / 1000 + " s (infinite loop?)",
     });
 
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const failResult = (msg, ms) => ({ stdout: "", stderr: "", results: [], error_line: null, timed_out: false, ms, error: msg });
+    let stage = "idle";
+
     // One run at a time. Resolves with the harness result, never rejects unless Python failed to load.
+    // Every wait below is capped, so a run that went wrong ends with a message instead of hanging.
     function run(code, fn, tests, timeoutMs = RUN_TIMEOUT_MS) {
-      const job = queue.then(async () => {
-        await ready;
+      const prev = queue;
+      const job = (async () => {
+        stage = "waiting for an earlier run to finish";
+        await Promise.race([prev, sleep(timeoutMs + 3000)]);
+        stage = "waiting for Python to load";
+        await Promise.race([ready, sleep(LOAD_TIMEOUT_MS).then(() => { throw new Error("Python did not finish loading."); })]);
         const t0 = performance.now();
         if (mode === "main") {
-          await new Promise((r) => setTimeout(r, 20)); // let the UI paint "Running" first
+          stage = "running tests on the main thread";
+          await sleep(20); // let the UI paint "Running" first
           const res = JSON.parse(mainRun(code, fn, JSON.stringify(tests), timeoutMs / 1000));
           res.ms = performance.now() - t0;
           return res;
         }
+        stage = "waiting for the Python worker to answer";
         return new Promise((resolve) => {
           const id = ++seq;
-          const timer = setTimeout(() => {
-            pending.delete(id);
-            restartWorker();
-            resolve(timeoutResult(timeoutMs));
-          }, timeoutMs);
-          pending.set(id, (res) => {
+          let timer = null;
+          const finish = (res) => {
             clearTimeout(timer);
+            pending.delete(id);
             res.ms = performance.now() - t0;
             resolve(res);
-          });
-          worker.postMessage({ type: "run", id, code, fn, tests });
+          };
+          timer = setTimeout(() => {
+            finish(timeoutResult(timeoutMs)); // settle first, then restart, so a restart problem cannot leave the run hanging
+            try { restartWorker(); } catch (e) { console.error("CodingHost: worker restart failed", e); setStatus("failed", (e && e.message) || String(e)); }
+          }, timeoutMs);
+          pending.set(id, finish);
+          try {
+            worker.postMessage({ type: "run", id, code, fn, tests });
+          } catch (e) {
+            finish(failResult("Could not send the tests to Python: " + ((e && e.message) || e)));
+          }
         });
-      });
+      })();
       queue = job.catch(() => {});
       return job;
     }
@@ -702,6 +722,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
       start,
       run,
       whenReady() { return ready; },
+      get stage() { return stage; },
       get status() { return status; },
       onStatus(fn) { listeners.add(fn); fn(status); return () => listeners.delete(fn); },
     };
@@ -813,7 +834,9 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
       return entry.done;
     }
 
-    const plain = (snap) => (snap && snap.exists ? snap.data() : null);
+    // Saved documents can come back read-only (frozen), but the page edits plans and progress in place, so hand out plain copies.
+    const thaw = (value) => (value == null ? value : JSON.parse(JSON.stringify(value)));
+    const plain = (snap) => (snap && snap.exists ? thaw(snap.data()) : null);
 
     return {
       init,
@@ -824,9 +847,9 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
           db.collection(base + "/plans").get(),
           db.collection(base + "/progress").get(),
         ]);
-        const prog = new Map(progress.docs.map((d) => [d.id, d.data()]));
+        const prog = new Map(progress.docs.map((d) => [d.id, thaw(d.data())]));
         return plans.docs
-          .map((d) => ({ plan: d.data(), progress: prog.get(d.id) || null }))
+          .map((d) => ({ plan: thaw(d.data()), progress: prog.get(d.id) || null }))
           .filter((x) => x.plan && Array.isArray(x.plan.exercises))
           .sort((a, b) => String((b.progress && b.progress.updated_at) || b.plan.created_at).localeCompare(String((a.progress && a.progress.updated_at) || a.plan.created_at)));
       },
@@ -1529,12 +1552,33 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
     out.textContent = "";
     out.append(h("div", { class: "out-summary muted", text: isSubmit ? "Running all tests…" : "Running…" }));
     let res;
+    let watchdog = null;
     try {
-      res = await runner.run(code, ex.function_name, tests);
+      res = await Promise.race([
+        runner.run(code, ex.function_name, tests),
+        new Promise((resolve) => {
+          watchdog = setTimeout(() => resolve({ error: "The test runner did not answer (stuck while " + runner.stage + "). Reload the page and try again.", results: [], stdout: "", stderr: "" }), RUN_TIMEOUT_MS + 20000);
+        }),
+      ]);
     } catch (e) {
       res = { error: "Python is not available: " + ((e && e.message) || e), results: [], stdout: "", stderr: "" };
     }
+    clearTimeout(watchdog);
     S.running = false;
+    try {
+      showRunResult(res, isSubmit, ex, exIndex, code);
+    } catch (e) {
+      console.error("CodingHost: could not show the results", e);
+      try { renderActions(); } catch (e2) { /* ignore */ }
+      const out = document.getElementById("output");
+      if (out) {
+        out.textContent = "";
+        out.append(h("pre", { class: "term err", text: "The page hit an error while showing the results: " + ((e && e.message) || e) }));
+      }
+    }
+  }
+
+  function showRunResult(res, isSubmit, ex, exIndex, code) {
     res.submit = isSubmit;
     S.lastRun[ex.id] = res;
     if (S.index !== exIndex || !S.plan) return;
@@ -1804,3 +1848,5 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
   boot();
 })();
 </script>
+
+</body></html>

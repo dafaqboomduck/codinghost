@@ -1,0 +1,14 @@
+{
+  "name": "codinghost",
+  "private": true,
+  "description": "Interactive Python coding tutor that runs as a claude.ai artifact.",
+  "scripts": {
+    "vendor": "./scripts/vendor-pyodide.sh",
+    "test": "node --test tests/",
+    "e2e": "node tests/e2e.mjs",
+    "serve": "python3 -m http.server 8765 --directory app"
+  },
+  "devDependencies": {
+    "playwright-core": "1.48.2"
+  }
+}

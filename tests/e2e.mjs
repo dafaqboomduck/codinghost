@@ -1,4 +1,4 @@
-// End-to-end check of app/codinghost.html in dev mode (?dev): fake sample/db/user, real Pyodide.
+// End-to-end check of the built app/codinghost.html in dev mode (?dev): fake sample/db/user, real Pyodide.
 // Usage: npm run e2e  (set CHROMIUM_PATH to use a specific browser binary; SHOTS=dir saves screenshots)
 import { createServer } from "node:http";
 import { readFile, readdir } from "node:fs/promises";

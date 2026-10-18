@@ -1,4 +1,4 @@
-// Unit tests for the Python test harness embedded in app/codinghost.html.
+// Unit tests for the Python test harness in src/py/harness.py.
 // Runs the harness in Pyodide under Node, using the vendored files in app/pyodide/.
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -9,8 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
-const html = readFileSync(path.join(root, "app/codinghost.html"), "utf8");
-const harness = html.match(/<script type="text\/x-python" id="py-harness">([\s\S]*?)<\/script>/)[1];
+const harness = readFileSync(path.join(root, "src/py/harness.py"), "utf8");
 const plan = JSON.parse(readFileSync(path.join(root, "app/dev/sample-plan.json"), "utf8"));
 
 let run;

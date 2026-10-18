@@ -110,7 +110,7 @@ def codinghost_run(code, function_name, tests_json, time_limit=0):
                         result["results"].append(item)
                         continue
                     try:
-                        actual = fn(*copy.deepcopy(args))
+                        actual = fn(*copy.deepcopy(args))  # pyright: ignore[reportOptionalCall]
                     except _Timeout as exc:
                         item["status"] = "error"
                         item["message"] = _format_exc(exc)

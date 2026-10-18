@@ -76,7 +76,7 @@ def build(page):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=str(__doc__).splitlines()[0])
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="output file (default: app/codinghost.html)")
     args = parser.parse_args()
 

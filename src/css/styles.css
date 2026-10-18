@@ -266,12 +266,25 @@ div.CodeMirror span.CodeMirror-matchingbracket { color: var(--ok); font-weight: 
 div.CodeMirror span.CodeMirror-nonmatchingbracket { color: var(--bad); }
 .cm-errline { background: var(--bad-soft); }
 
+/* Single column: phones, and claude.ai's chat side panel (roughly 8:9). Task, editor and results
+   stack, so the editor grows with the code instead of a fixed height that pushes Run below the fold. */
 @media (max-width: 900px) {
-  .home-grid, .ex-grid { grid-template-columns: minmax(0, 1fr); }
-  .CodeMirror { height: 280px; }
+  .home-grid, .ex-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* A returning learner wants their plans first; with no plans the form leads. */
+  .home-grid > .plan-list:has(.plan-item) { order: -1; }
+  main.wrap { padding-block: 20px 48px; }
+  .home-head { margin-bottom: 18px; }
+  .strip { margin-bottom: 14px; }
+  .panel { padding: 16px; }
+  .task { gap: 12px; }
+  .CodeMirror { height: auto; }
+  .CodeMirror-scroll { min-height: 168px; }
 }
 @media (max-width: 520px) {
   h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  .topbar .wrap { min-height: 48px; gap: 4px 12px; }
+  .actions .btn .kbd { display: none; }
   .stats { grid-template-columns: minmax(0, 1fr); }
   .strip .summary { margin-left: 0; width: 100%; }
   .crumb { order: 3; flex-basis: 100%; }

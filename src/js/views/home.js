@@ -69,7 +69,7 @@ function renderNewPlanForm() {
 }
 
 function renderPlanList() {
-  const panel = h("section", { class: "panel stack" }, h("h2", { text: "Your plans" }));
+  const panel = h("section", { class: "panel stack plan-list" }, h("h2", { text: "Your plans" }));
   if (!S.caps || S.plans === null) {
     panel.append(h("div", { class: "empty" }, h("span", { text: S.caps ? "Loading your plans…" : "Connecting to claude.ai…" })));
     return panel;

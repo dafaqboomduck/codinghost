@@ -235,7 +235,6 @@ function showRunResult(res, isSubmit, ex, exIndex, code) {
   renderActions();
   renderOutput();
   renderTutor();
-  if (res.allPass && ai.available && wantsReview(ex, st)) doReview();
 }
 
 function unlockNext(i) {

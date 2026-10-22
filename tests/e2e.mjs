@@ -113,6 +113,8 @@ try {
     await page.click("button:has-text('Submit')");
     await page.locator(".chip", { hasText: "Passed" }).waitFor();
     assert.equal(await page.locator(".strip .step:disabled").count(), 4);
+    assert.equal(await page.locator(".hint.review").count(), 0, "review waits for a click");
+    await page.click("button:has-text('Review my code')");
     await page.locator(".hint.review:not(.streaming)", { hasText: "One idea" }).waitFor({ timeout: 10000 });
     assert.equal(await page.locator("button", { hasText: /^Review my/ }).count(), 0);
     if (shots) await page.screenshot({ path: path.join(shots, "exercise-pass.png"), fullPage: true });
@@ -166,6 +168,7 @@ try {
     await page.locator(".hint.review", { hasText: "One idea" }).waitFor();
     await setCode("def first_and_last(items):\n    first = items[0]\n    return [first, items[-1]]\n");
     await page.click("button:has-text('Submit')");
+    await page.click("button:has-text('Review my new code')");
     await page.locator(".hint.review.streaming").waitFor({ timeout: 5000 });
     await page.locator(".hint.review:not(.streaming)").waitFor({ timeout: 10000 });
     await page.locator(".step", { hasText: "2" }).click();

@@ -16,6 +16,7 @@ async function startGeneration(topic, level, count) {
       },
     });
     if (S.gen.controller !== controller) return;
+    if (raw && raw.unsupported_package) throw unsupportedPackageError(raw);
     const n = raw && Array.isArray(raw.exercises) ? raw.exercises.length : 0;
     S.gen.steps[0] = { label: "Claude wrote " + n + " exercises", sub: (raw && raw.summary) || "", state: "done" };
     renderGenerating();
@@ -46,7 +47,11 @@ async function startGeneration(topic, level, count) {
   } catch (e) {
     if (!S.gen || S.gen.controller !== controller) return;
     if (e && e.code === "cancelled") { goHome(); return; }
-    if (e && (e.code === "too_few" || e.code === "python")) S.gen.error = e.message;
+    if (e && e.code === "unsupported") {
+      S.gen.steps[0] = { label: "No plan written", sub: "", state: "fail" };
+      S.gen.unsupported = true;
+    }
+    if (e && (e.code === "too_few" || e.code === "python" || e.code === "unsupported")) S.gen.error = e.message;
     else S.gen.error = phase === "save" ? dbErrorMessage(e) : aiErrorMessage(e);
     if (e && e.code === "not_granted") ai.init(null);
     renderGenerating();
@@ -73,9 +78,16 @@ function renderGenerating() {
       ? h("div", { class: "stack" },
           h("div", { class: "notice bad", text: g.error }),
           h("div", { class: "row" },
-            h("button", { class: "btn", type: "button", onclick: () => startGeneration(g.topic, g.level, g.count), disabled: !ai.available, text: "Try again" }),
+            // Retrying the same topic would only be refused again.
+            g.unsupported ? null : h("button", { class: "btn", type: "button", onclick: () => startGeneration(g.topic, g.level, g.count), disabled: !ai.available, text: "Try again" }),
             h("button", { class: "btn secondary", type: "button", onclick: () => goHome(), text: "Back to plans" }),
           ))
       : h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => { g.controller.abort(); goHome(); }, text: "Cancel" })),
   ));
+}
+
+function unsupportedPackageError(raw) {
+  const pkg = String(raw.unsupported_package).slice(0, 60);
+  const suggestion = raw.suggestion ? " Try a standard library topic instead, for example: " + String(raw.suggestion).slice(0, 120) + "." : "";
+  return { code: "unsupported", message: "The " + pkg + " package is not available here. CodingHost runs Python in your browser with only the standard library, so it cannot build a plan about " + pkg + "." + suggestion };
 }

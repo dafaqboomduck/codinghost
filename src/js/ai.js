@@ -25,7 +25,7 @@ const ai = (() => {
 }`;
 
   const RULES = (level) => `Rules:
-- Every exercise asks the learner to write ONE function, named in "function_name". No classes, no input(), no printing required, no files or network. Standard library only.
+- Every exercise asks the learner to write ONE function, named in "function_name". No classes, no input(), no printing required, no files or network. Standard library only: never import a third-party package.
 - "starter_code" is the def line with its parameters, a one-line docstring, and \`pass\`.
 - "reference_solution" is a complete, correct implementation of the same function.
 - 3 to 6 tests per exercise: at least 2 with "hidden": false and at least 1 with "hidden": true.
@@ -41,7 +41,13 @@ Topic: ${topic}
 Learner level: ${level}
 Number of exercises: ${count}
 
-Write exactly ${count} exercises about the topic, ordered from easiest to hardest. Each exercise teaches one concept. Use ids "ex1", "ex2", and so on.
+The learner's code runs in Pyodide in the browser with only the Python standard library. No third-party package can be installed.
+
+First decide whether the topic is about a package outside the standard library (for example numpy, pandas, requests, flask, django, matplotlib or pygame). If it is, do not write a plan. Reply with only this JSON object:
+{"unsupported_package": "the package name", "suggestion": "a related topic that needs only the standard library"}
+A general topic such as "data analysis" or "web scraping basics" is fine: write it with the standard library (csv, statistics, json, re, html.parser and so on).
+
+Otherwise write exactly ${count} exercises about the topic, ordered from easiest to hardest. Each exercise teaches one concept. Use ids "ex1", "ex2", and so on.
 
 Reply with only one JSON object of this shape:
 ${PLAN_SHAPE}

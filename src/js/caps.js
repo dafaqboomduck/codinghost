@@ -64,6 +64,7 @@ function devCaps() {
       if (plan._dev_repairs && plan._dev_repairs[id]) return JSON.parse(JSON.stringify(plan._dev_repairs[id]));
       throw { code: "invalid_json", message: "Dev shim has no repair for " + id };
     }
+    if (/^Topic: .*numpy/im.test(String(input))) return { unsupported_package: "numpy", suggestion: "lists of numbers with the statistics module" };
     if (opts.onText) opts.onText({ text: JSON.stringify(plan), delta: "" });
     return JSON.parse(JSON.stringify(plan));
   };

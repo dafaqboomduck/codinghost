@@ -76,6 +76,15 @@ try {
     assert.match(await page.getAttribute("#py-chip", "title"), /Web Worker/);
   });
 
+  await step("topic needing a third-party package is refused without a plan", async () => {
+    await page.fill("#topic", "numpy arrays");
+    await page.click("text=Generate plan");
+    await page.locator(".notice.bad", { hasText: "numpy package is not available" }).waitFor({ timeout: 10000 });
+    assert.equal(await page.locator("button", { hasText: "Try again" }).count(), 0);
+    await page.click("text=Back to plans");
+    await page.getByText("No plans yet").waitFor();
+  });
+
   await step("generate plan; broken ex6 is repaired, all 6 kept", async () => {
     await page.fill("#topic", "Python lists");
     await page.click("text=Generate plan");

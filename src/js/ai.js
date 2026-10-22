@@ -110,6 +110,33 @@ ${summarizeRun(run, exercise)}
 Learner's question: ${question ? question : "(none) Give the next hint."}`;
   }
 
+  function reviewPrompt({ exercise, code, level }) {
+    return `You review code in a Python practice app. The learner's code below already passes every test. Help them write it better next time.
+
+How to answer:
+- Start with one sentence on what their code does well.
+- Then give at most 2 concrete improvements, most valuable first: more idiomatic Python, clearer names, simpler logic, an edge case the tests miss, or efficiency.
+- The learner is ${level}. Do not push advanced features on a beginner unless they make the code much simpler.
+- If a change helps, show the improved function in one \`\`\`python block.
+- If their code is already clean and idiomatic, say so in one or two sentences. Do not invent problems.
+- Keep it under 150 words. Use Markdown and put code in backticks.
+
+Exercise: ${exercise.title}
+Concept: ${exercise.concept}
+Task:
+${exercise.prompt_md}
+
+Learner's passing code:
+\`\`\`python
+${code}
+\`\`\`
+
+One correct solution, for your comparison only (theirs may be just as good):
+\`\`\`python
+${exercise.reference_solution}
+\`\`\``;
+  }
+
   async function checkSize(prompt) {
     try { limits = limits || (await sample.limits()); } catch (e) { limits = { maxPromptBytes: Infinity }; }
     const bytes = new TextEncoder().encode(prompt).length;
@@ -133,6 +160,11 @@ Learner's question: ${question ? question : "(none) Give the next hint."}`;
       const prompt = helpPrompt(args);
       await checkSize(prompt);
       return sample(prompt, Object.assign({ modelTier: "default", cache: false }, opts));
+    },
+    async review(args, opts) {
+      const prompt = reviewPrompt(args);
+      await checkSize(prompt);
+      return sample(prompt, Object.assign({ modelTier: "default" }, opts));
     },
   };
 })();

@@ -45,7 +45,9 @@ function devCaps() {
   let canned = null;
   const getCanned = async () => canned || (canned = await (await fetch("dev/sample-plan.json")).json());
   const sample = async (input, opts = {}) => {
-    const text = "Look at what your loop does with each item. **Which variable** holds the answer, and do you return it at the end? Try printing it inside the loop with `print(...)` to see how it changes.";
+    const text = String(input).includes("already passes every test")
+      ? "Clear and correct. **One idea:** give each value a name that says what it holds, so the `return` line reads like the task."
+      : "Look at what your loop does with each item. **Which variable** holds the answer, and do you return it at the end? Try printing it inside the loop with `print(...)` to see how it changes.";
     let acc = "";
     for (const word of text.split(" ")) {
       await new Promise((r) => setTimeout(r, 25));

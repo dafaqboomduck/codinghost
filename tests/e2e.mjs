@@ -100,10 +100,12 @@ try {
   });
 
   await step("correct submit passes and unlocks exercise 2", async () => {
-    await setCode("def first_and_last(items):\n    return [items[0], items[-1]]\n");
+    await setCode("def first_and_last(items):\n    return [items[0], items[len(items) - 1]]\n");
     await page.click("button:has-text('Submit')");
     await page.locator(".chip", { hasText: "Passed" }).waitFor();
     assert.equal(await page.locator(".strip .step:disabled").count(), 4);
+    await page.locator(".hint.review:not(.streaming)", { hasText: "One idea" }).waitFor({ timeout: 10000 });
+    assert.equal(await page.locator("button", { hasText: /^Review my/ }).count(), 0);
     if (shots) await page.screenshot({ path: path.join(shots, "exercise-pass.png"), fullPage: true });
   });
 
@@ -148,6 +150,16 @@ try {
     await page.locator("button", { hasText: "Continue" }).click();
     await page.locator(".step.current", { hasText: "2" }).waitFor();
     assert.match(await getCode(), /sum\(1 for n in numbers/);
+  });
+
+  await step("code review is saved with progress", async () => {
+    await page.locator(".step", { hasText: "1" }).click();
+    await page.locator(".hint.review", { hasText: "One idea" }).waitFor();
+    await setCode("def first_and_last(items):\n    first = items[0]\n    return [first, items[-1]]\n");
+    await page.click("button:has-text('Submit')");
+    await page.locator(".hint.review.streaming").waitFor({ timeout: 5000 });
+    await page.locator(".hint.review:not(.streaming)").waitFor({ timeout: 10000 });
+    await page.locator(".step", { hasText: "2" }).click();
   });
 
   await step("debug log is saved to debug/<uid> and keeps the previous session", async () => {

@@ -12,6 +12,7 @@ const S = {
   showSolution: {},    // ex id -> true
   running: false,
   helping: false,
+  reviews: {},         // ex id -> {text, streaming, error} for the review being fetched (saved ones live in progress)
   gen: null,           // generation state
 };
 let editor = null;

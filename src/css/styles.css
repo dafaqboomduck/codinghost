@@ -220,6 +220,9 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .hint .who { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
 .hint .q { font-size: 13px; color: var(--muted); }
 .hint.streaming .body::after { content: "▍"; color: var(--accent); }
+.hint .body { min-width: 0; }
+.hint.review { background: var(--ok-soft); }
+.hint.review .who { color: var(--ok); }
 
 .done-banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); font-weight: 600; }
 

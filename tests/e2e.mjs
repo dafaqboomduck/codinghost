@@ -211,6 +211,22 @@ try {
     if (shots) await page.screenshot({ path: path.join(shots, "complete.png"), fullPage: true });
   });
 
+  await step("deleting a plan asks first, then removes it and its progress", async () => {
+    await page.click("text=Back to plans");
+    await page.locator(".plan-item").first().waitFor();
+    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    await page.click(".confirm >> text=Cancel");
+    assert.equal(await page.locator(".plan-item").count(), 1);
+    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    if (shots) await page.screenshot({ path: path.join(shots, "home-delete.png"), fullPage: true });
+    await page.click(".confirm >> button.danger");
+    await page.getByText("No plans yet").waitFor();
+    const keys = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("codinghost-dev-db"))));
+    assert.ok(!keys.some((k) => /\/(plans|progress)\//.test(k)), "left behind: " + keys.join(", "));
+    await page.reload();
+    await page.getByText("No plans yet").waitFor();
+  });
+
   await step("phone width has no horizontal scroll", async () => {
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
     const p = await phone.newPage();

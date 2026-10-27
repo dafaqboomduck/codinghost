@@ -117,6 +117,8 @@ main.wrap { padding-block: 28px 64px; }
 .btn.ghost { background: transparent; color: var(--muted); border-color: transparent; padding-inline: 8px; }
 .btn.ghost:hover:not(:disabled) { background: var(--sunken); color: var(--fg); filter: none; }
 .btn.danger { background: var(--bad); border-color: var(--bad); color: var(--bg); }
+.btn.icon-btn { padding: 8px; }
+.btn.icon-btn:hover:not(:disabled) { color: var(--bad); }
 .btn .kbd { font: 500 11px var(--font-mono); opacity: .75; }
 label.field { display: grid; gap: 6px; font-weight: 500; font-size: 14px; }
 input[type="text"], select {

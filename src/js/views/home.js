@@ -4,6 +4,7 @@ async function goHome() {
   S.plan = null;
   S.progress = null;
   S.gen = null;
+  S.confirm = null;
   editor = null;
   setCrumb("");
   dbg.log("view", { view: "home" });
@@ -97,9 +98,38 @@ function renderPlanList() {
           when ? h("span", { text: new Date(when).toLocaleDateString(undefined, { day: "numeric", month: "short" }) }) : null,
         ),
       ),
-      h("button", { class: "btn secondary", type: "button", onclick: () => openPlan(plan, progress), text: done === total ? "Review" : done ? "Continue" : "Start" }),
+      h("div", { class: "row", style: "gap: 4px" },
+        h("button", { class: "btn secondary", type: "button", onclick: () => openPlan(plan, progress), text: done === total ? "Review" : done ? "Continue" : "Start" }),
+        trashButton("Delete plan " + plan.topic, () => { S.confirm = "delete:" + plan.id; renderHome(); }),
+      ),
+      S.confirm === "delete:" + plan.id ? h("div", { class: "confirm", style: "grid-column: 1 / -1" },
+        h("span", { text: "Delete this plan and its progress? This cannot be undone." }),
+        h("span", { class: "spacer" }),
+        h("button", { class: "btn danger", type: "button", onclick: () => deletePlan(plan.id), text: "Delete" }),
+        h("button", { class: "btn secondary", type: "button", onclick: () => { S.confirm = null; renderHome(); }, text: "Cancel" }),
+      ) : null,
     ));
   }
   panel.append(list);
   return panel;
+}
+
+async function deletePlan(id) {
+  S.confirm = null;
+  dbg.log("delete_plan", { plan: id });
+  try {
+    await store.deletePlan(id);
+    S.plans = S.plans.filter((x) => x.plan.id !== id);
+  } catch (e) {
+    toast("Could not delete the plan. " + dbErrorMessage(e));
+  }
+  if (!S.plan && !S.gen) renderHome();
+}
+
+// h() builds HTML elements only, so the SVG icon goes in as markup. The string is constant, never user text.
+const TRASH_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+function trashButton(label, onclick) {
+  const btn = h("button", { class: "btn ghost icon-btn", type: "button", "aria-label": label, title: label, onclick });
+  btn.innerHTML = TRASH_SVG;
+  return btn;
 }

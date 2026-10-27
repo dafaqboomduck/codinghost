@@ -55,6 +55,11 @@ const store = (() => {
     savePlan(plan) { return write(base + "/plans/" + plan.id, plan); },
     async getProgress(id) { return plain(await db.doc(base + "/progress/" + id).get()); },
     saveProgress(id, progress) { return write(base + "/progress/" + id, progress); },
+    // Progress goes first: a plan whose progress delete failed would show up again as unstarted.
+    async deletePlan(id) {
+      await db.doc(base + "/progress/" + id).delete();
+      await db.doc(base + "/plans/" + id).delete();
+    },
   };
 })();
 

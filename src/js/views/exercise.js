@@ -3,7 +3,9 @@ function openPlan(plan, progress) {
   S.progress = progress || newProgress(plan);
   const idx = Math.min(S.progress.current_index || 0, plan.exercises.length - 1);
   store.saveProfile({ last_plan_id: plan.id, updated_at: new Date().toISOString() }).catch(() => {});
-  openExercise(idx);
+  const li = lessonIndex(plan, S.progress.current_lesson);
+  if (li >= 0 && canOpen(firstExerciseOf(plan, plan.lessons[li]))) openLesson(li);
+  else openExercise(idx);
 }
 
 function canOpen(i) {
@@ -15,8 +17,9 @@ function openExercise(i) {
   if (!canOpen(i)) return;
   if (saveTimer) saveProgressNow();
   S.index = i;
+  S.lesson = null;
   S.confirm = null;
-  if (S.progress.current_index !== i) { S.progress.current_index = i; saveProgressSoon(); }
+  if (S.progress.current_index !== i || S.progress.current_lesson) { S.progress.current_index = i; S.progress.current_lesson = null; saveProgressSoon(); }
   const ex = S.plan.exercises[i];
   dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
   setCrumb(S.plan.topic + " · " + (i + 1) + " / " + S.plan.exercises.length);
@@ -32,14 +35,12 @@ function openExercise(i) {
     ]),
   );
 
+  // The lesson stays one click away instead of on screen: recalling it is the practice.
+  const lesson = lessonOf(S.plan, ex);
   const task = h("section", { class: "panel task" },
+    lesson ? h("div", {}, h("button", { class: "btn ghost back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson: " + lesson.title })) : null,
     h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " · " + ex.concept }),
     h("h2", { text: ex.title }),
-    // Plans made before lessons existed have no lesson_md. Once solved, the lesson starts folded so the task leads.
-    ex.lesson_md ? h("details", { class: "lesson", open: !isDone(exState(ex)) },
-      h("summary", { text: "Lesson: " + ex.concept }),
-      md(ex.lesson_md),
-    ) : null,
     md(ex.prompt_md),
     h("div", { class: "stack", style: "gap: 6px" },
       h("h3", { text: "Examples" }),
@@ -97,13 +98,29 @@ function renderStrip() {
   const strip = document.getElementById("strip");
   if (!strip) return;
   strip.textContent = "";
+  let prevLesson = null;
   S.plan.exercises.forEach((ex, i) => {
     const st = exState(ex);
-    const cls = ["step", st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : "", i === S.index ? "current" : ""].join(" ");
+    const lesson = lessonOf(S.plan, ex);
+    if (lesson && lesson !== prevLesson) {
+      const li = lessonIndex(S.plan, lesson.id);
+      const locked = st.status === "locked";
+      strip.append(h("button", {
+        class: "step lesson" + (S.lesson === li ? " current" : ""), type: "button", disabled: locked,
+        "aria-current": S.lesson === li ? "step" : null,
+        "aria-label": "Lesson " + (li + 1) + ", " + lesson.title + (locked ? ", locked" : ""),
+        title: lesson.title,
+        onclick: () => openLesson(li),
+        text: "L" + (li + 1),
+      }));
+    }
+    prevLesson = lesson;
+    const current = S.lesson == null && i === S.index;
+    const cls = ["step", st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : "", current ? "current" : ""].join(" ");
     const stateLabel = st.status === "locked" ? "locked" : st.status === "passed" ? "passed" : st.status === "solution_shown" ? "completed with solution" : "open";
     strip.append(h("button", {
       class: cls, type: "button", disabled: st.status === "locked",
-      "aria-current": i === S.index ? "step" : null,
+      "aria-current": current ? "step" : null,
       "aria-label": "Exercise " + (i + 1) + ", " + ex.title + ", " + stateLabel,
       title: ex.title + " (" + stateLabel + ")",
       onclick: () => openExercise(i),
@@ -143,7 +160,7 @@ function renderActions() {
   const row = h("div", { class: "actions" },
     h("button", { class: "btn secondary", type: "button", disabled: busy, onclick: () => doRun(false) }, "Run", h("span", { class: "kbd", text: "Ctrl+↵" })),
     h("button", { class: "btn", type: "button", disabled: busy, onclick: () => doRun(true) }, "Submit", h("span", { class: "kbd", text: "Ctrl+Shift+↵" })),
-    isDone(st) && next ? h("button", { class: "btn secondary", type: "button", onclick: () => openExercise(S.index + 1), text: "Next exercise →" }) : null,
+    isDone(st) && next ? nextButton(ex, next) : null,
     h("span", { class: "spacer" }),
     h("button", { class: "btn ghost", type: "button", onclick: () => { S.confirm = "reset"; renderActions(); }, text: "Reset code" }),
   );
@@ -159,6 +176,15 @@ function renderActions() {
       h("button", { class: "btn secondary", type: "button", onclick: () => { S.confirm = null; renderActions(); }, text: "Cancel" }),
     ));
   }
+}
+
+// Crossing into a new lesson opens that lesson first, not its first exercise.
+function nextButton(ex, next) {
+  const lesson = lessonOf(S.plan, next);
+  if (lesson && next.lesson_id !== ex.lesson_id) {
+    return h("button", { class: "btn secondary", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "Next lesson →" });
+  }
+  return h("button", { class: "btn secondary", type: "button", onclick: () => openExercise(S.index + 1), text: "Next exercise →" });
 }
 
 function clearErrorLine() {
@@ -274,7 +300,9 @@ function renderOutput() {
 
   if (res.submit && res.allPass) {
     const next = S.plan.exercises[S.index + 1];
-    el.append(h("div", { class: "notice ok", text: next ? "All " + results.length + " tests pass. Exercise " + (S.index + 2) + " is unlocked." : "All tests pass. That was the last exercise." }));
+    const nextLesson = next && next.lesson_id !== ex.lesson_id ? lessonOf(S.plan, next) : null;
+    const unlocked = nextLesson ? "Lesson " + (lessonIndex(S.plan, nextLesson.id) + 1) + " is unlocked." : "Exercise " + (S.index + 2) + " is unlocked.";
+    el.append(h("div", { class: "notice ok", text: next ? "All " + results.length + " tests pass. " + unlocked : "All tests pass. That was the last exercise." }));
   } else if (!res.submit && !res.error && !failed && results.length) {
     el.append(h("p", { class: "muted", style: "font-size: 13px", text: "Visible tests pass. Submit runs the hidden tests too." }));
   }

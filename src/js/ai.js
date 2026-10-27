@@ -8,12 +8,22 @@ const ai = (() => {
 "topic": "string",
 "level": "beginner | intermediate | advanced",
 "summary": "1-2 sentences on what the learner practices",
+"lessons": [
+  {
+    "id": "l1",
+    "title": "short title",
+    "intro_md": "2 to 4 sentences of Markdown that introduce the lesson's tools",
+    "examples": [
+      { "code": "words = ['hi', 'hello']\nprint(len(words))  # 2", "note": "one sentence on what to notice" }
+    ]
+  }
+],
 "exercises": [
   {
     "id": "ex1",
+    "lesson_id": "l1",
     "title": "short title",
-    "concept": "the one concept this exercise teaches",
-    "lesson_md": "a short lesson on the concept in Markdown, shown before the task",
+    "concept": "the one concept this exercise practices",
     "prompt_md": "the task in Markdown",
     "hint_md": "a first hint in Markdown, shown only when the learner asks",
     "function_name": "snake_case_name",
@@ -33,10 +43,16 @@ const ai = (() => {
 - 3 to 6 tests per exercise: at least 2 with "hidden": false and at least 1 with "hidden": true.
 - "args_py" is a Python tuple literal of the positional arguments, for example "(2, 3)", or "([1, 2, 3],)" for one argument. "expected_py" is a Python literal of the return value. Use only literals: numbers, strings, booleans, None, lists, tuples, dicts, sets.
 - Avoid float results unless the task says to round with round(x, 2). Avoid results with undefined order: ask for sorted lists instead.
-- "lesson_md" teaches the concept in 3 to 6 sentences plus one short \`\`\`python example. It names the functions, methods or syntax the learner needs. Its example solves a DIFFERENT problem than the exercise, so the learner must adapt it, not copy it. Never mention the exercise's function.
 - "prompt_md" explains the task in 2 to 5 sentences of Markdown. It names the function and its parameters, says what it returns, and shows one example call in inline code. It describes only the behavior: never name the function, method, pattern or expression that solves it, and never show part of the solution.
-- "hint_md" is 1 or 2 sentences that point toward the right tool or idea from the lesson, without code.
+- "hint_md" is 1 or 2 sentences that point toward the right tool or idea from the exercise's lesson, without code.
 - Write for a ${level} learner.`;
+
+  const LESSON_RULES = (count) => `Lesson rules:
+- Write ${Math.ceil(count / 2)} lessons. The learner reads a lesson on its own screen, then solves its exercises without the lesson in view.
+- A lesson introduces the functions, methods and syntax that its exercises need. "intro_md" says what they are for; the examples show how they behave.
+- 3 or 4 examples per lesson. Each "code" is a short snippet of at most 6 lines that prints its results, with the printed output in a comment after each print. Each "note" says in one sentence what to notice.
+- Examples solve DIFFERENT problems than the exercises, so the learner must adapt them, not copy them. Never use an exercise's function name or any line of its solution.
+- Order "exercises" lesson by lesson. Each exercise's "lesson_id" is the lesson it practices. Give each lesson 1 or 2 exercises, easiest first.`;
 
   function planPrompt(topic, level, count) {
     return `You write short Python practice courses for an in-browser coding tutor.
@@ -51,10 +67,12 @@ First decide whether the topic is about a package outside the standard library (
 {"unsupported_package": "the package name", "suggestion": "a related topic that needs only the standard library"}
 A general topic such as "data analysis" or "web scraping basics" is fine: write it with the standard library (csv, statistics, json, re, html.parser and so on).
 
-Otherwise write exactly ${count} exercises about the topic, ordered from easiest to hardest. Each exercise teaches one concept. Use ids "ex1", "ex2", and so on.
+Otherwise write a short course about the topic: lessons, each followed by its exercises, exactly ${count} exercises in total, ordered from easiest to hardest. Each exercise practices one concept. Use ids "l1", "l2" for lessons and "ex1", "ex2" for exercises.
 
 Reply with only one JSON object of this shape:
 ${PLAN_SHAPE}
+
+${LESSON_RULES(count)}
 
 ${RULES(level)}`;
   }
@@ -67,7 +85,7 @@ Problem: ${problem}
 Exercise JSON:
 ${JSON.stringify(ex, null, 2)}
 
-Fix the exercise so that its "reference_solution" passes every test and all rules hold. Fix whichever part is wrong: the tests, the solution, or the task text. Keep the same "id" and the same topic.
+Fix the exercise so that its "reference_solution" passes every test and all rules hold. Fix whichever part is wrong: the tests, the solution, or the task text. Keep the same "id", "lesson_id" and topic.
 
 ${RULES(level)}
 
@@ -94,7 +112,7 @@ Reply with only the corrected exercise as one JSON object with the same fields a
     return parts.join("\n\n") || "All tests passed.";
   }
 
-  function helpPrompt({ exercise, code, run, level, question, shownHint }) {
+  function helpPrompt({ exercise, lesson, code, run, level, question, shownHint }) {
     return `You are a patient Python tutor inside a practice app. The learner is working on one exercise and asked for help.
 
 How to answer:
@@ -108,7 +126,11 @@ Exercise: ${exercise.title}
 Concept: ${exercise.concept}
 Task:
 ${exercise.prompt_md}
-${shownHint ? `
+${lesson ? `
+The learner read this lesson before the exercise. Point back to it when it helps:
+${lesson.title}
+${lesson.examples.map((e) => e.code).join("\n\n")}
+` : ""}${shownHint ? `
 The learner already read this hint, so go further than it:
 ${exercise.hint_md}
 ` : ""}

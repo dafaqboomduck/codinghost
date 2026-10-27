@@ -4,7 +4,7 @@ const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 function exerciseProblems(ex) {
   const problems = [];
   if (!ex || typeof ex !== "object") return ["The exercise is not an object."];
-  for (const f of ["title", "concept", "lesson_md", "prompt_md", "hint_md", "function_name", "starter_code", "reference_solution"]) {
+  for (const f of ["title", "concept", "prompt_md", "hint_md", "function_name", "starter_code", "reference_solution"]) {
     if (typeof ex[f] !== "string" || !ex[f].trim()) problems.push(`Field "${f}" is missing or empty.`);
   }
   if (typeof ex.function_name === "string" && !IDENT.test(ex.function_name)) problems.push(`"function_name" is not a valid Python name.`);
@@ -38,9 +38,45 @@ function leakProblems(ex) {
     .map((span) => span.slice(1, -1).trim())
     .filter((code) => code.length >= 3 && !code.includes(ex.function_name) && !IDENT.test(code) && !STRING_LITERAL.test(code))
     .filter((code) => ex.reference_solution.includes(code));
-  if (leaks.length) problems.push(`"prompt_md" gives away part of the solution: ${leaks.map((c) => "`" + c + "`").join(", ")}. Describe only the behavior, and move the tool into "lesson_md" and "hint_md".`);
-  if (ex.lesson_md.includes(ex.function_name)) problems.push(`"lesson_md" mentions the exercise's function. Its example must solve a different problem.`);
+  if (leaks.length) problems.push(`"prompt_md" gives away part of the solution: ${leaks.map((c) => "`" + c + "`").join(", ")}. Describe only the behavior, and leave the tool to the lesson and "hint_md".`);
   return problems;
+}
+
+// An example that uses the exercise's function, or repeats a line of its solution, shows the answer one screen early.
+// Short lines like `return result` are skipped: they appear in almost any example.
+function exampleLeaks(code, ex) {
+  if (code.includes(ex.function_name)) return true;
+  const lines = new Set(code.split("\n").map((l) => l.trim()));
+  return ex.reference_solution.split("\n").slice(1).map((l) => l.trim()).some((l) => l.length >= 10 && lines.has(l));
+}
+
+// Keeps the lessons that still have exercises, groups exercises under their lesson in lesson order,
+// and drops examples that leak. Renumbers lessons to l1, l2, ... A plan without lessons stays without.
+function shapeLessons(raw, exercises) {
+  const lessons = (Array.isArray(raw.lessons) ? raw.lessons : []).filter((l) => l && typeof l.id === "string" && typeof l.title === "string");
+  if (!lessons.length) {
+    exercises.forEach((ex) => { delete ex.lesson_id; });
+    return [];
+  }
+  const ids = new Set(lessons.map((l) => l.id));
+  // An unknown lesson_id joins the lesson of the exercise before it, so the course still reads lesson, then its exercises.
+  let prev = lessons[0].id;
+  for (const ex of exercises) {
+    if (!ids.has(ex.lesson_id)) ex.lesson_id = prev;
+    prev = ex.lesson_id;
+  }
+  const groups = lessons.map((l) => ({ lesson: l, exercises: exercises.filter((ex) => ex.lesson_id === l.id) })).filter((g) => g.exercises.length);
+  // Assign the new ids only after grouping: an old "l2" renamed to "l1" would otherwise collide with the old "l1".
+  exercises.splice(0, exercises.length, ...groups.flatMap((g) => g.exercises));
+  return groups.map((g, i) => {
+    const id = "l" + (i + 1);
+    g.exercises.forEach((ex) => { ex.lesson_id = id; });
+    const examples = (Array.isArray(g.lesson.examples) ? g.lesson.examples : [])
+      .filter((e) => e && typeof e.code === "string" && e.code.trim())
+      .map((e) => ({ code: e.code.replace(/\s+$/, ""), note: typeof e.note === "string" ? e.note : "" }))
+      .filter((e) => !g.exercises.some((ex) => exampleLeaks(e.code, ex)));
+    return { id, title: g.lesson.title, intro_md: typeof g.lesson.intro_md === "string" ? g.lesson.intro_md : "", examples };
+  });
 }
 
 function failureText(res) {
@@ -53,6 +89,7 @@ function failureText(res) {
 }
 
 // Shape check, run the reference solution against all tests, then a leak check. One repair call per flagged exercise.
+// Returns { exercises, lessons } with both renumbered.
 async function validatePlan(raw, level, report, signal) {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.exercises)) throw { code: "invalid_json", message: "The plan has no exercise list." };
   const kept = [];
@@ -82,8 +119,9 @@ async function validatePlan(raw, level, report, signal) {
       kept.push(ex);
     }
   }
+  const lessons = shapeLessons(raw, kept);
   kept.forEach((ex, i) => { ex.id = "ex" + (i + 1); });
-  return kept;
+  return { exercises: kept, lessons };
 }
 
 // Returns null, { hard } for an exercise that cannot be used, or { soft } for one that works but gives the answer away.

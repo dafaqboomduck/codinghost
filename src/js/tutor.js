@@ -102,7 +102,7 @@ async function doHelp(question) {
   renderTutor();
   let pendingFrame = false;
   try {
-    const res = await ai.help({ exercise: ex, code: editor.getValue(), run: S.lastRun[ex.id], level, question, shownHint: !!st.hint_shown }, {
+    const res = await ai.help({ exercise: ex, lesson: lessonOf(S.plan, ex), code: editor.getValue(), run: S.lastRun[ex.id], level, question, shownHint: !!st.hint_shown }, {
       onText: ({ text }) => {
         hint.text = text;
         if (!pendingFrame) {

@@ -2,12 +2,48 @@
   "topic": "Python lists",
   "level": "beginner",
   "summary": "Practice creating, reading and transforming Python lists, from indexing to building new lists in a loop.",
+  "lessons": [
+    {
+      "id": "l1",
+      "title": "Reading a list and looping over it",
+      "intro_md": "A list keeps items in order. You read one item by its **index**, and a `for` loop visits every item in turn. The `%` operator gives the remainder of a division.",
+      "examples": [
+        { "code": "colors = ['red', 'green', 'blue']\nprint(colors[0])   # red\nprint(colors[-1])  # blue", "note": "Indexes start at 0. Negative indexes count from the end." },
+        { "code": "for c in ['red', 'green']:\n    print(c.upper())\n# RED\n# GREEN", "note": "A for loop runs its body once for every item." },
+        { "code": "print(7 % 3)  # 1\nprint(8 % 4)  # 0", "note": "The remainder is 0 when the division comes out even." },
+        { "code": "long_words = 0\nfor w in ['hi', 'hello', 'hey']:\n    if len(w) > 2:\n        long_words += 1\nprint(long_words)  # 2", "note": "To count, start at 0 before the loop and add 1 when an item matches." },
+        { "code": "print(first_and_last([1, 2]))  # [1, 2]", "note": "Uses the exercise's own function on purpose, so the leak check drops it." }
+      ]
+    },
+    {
+      "id": "l2",
+      "title": "Slices and building new lists",
+      "intro_md": "A **slice** copies part of a list. To make a new list from scratch, start empty and `.append` what you keep, or write a list comprehension.",
+      "examples": [
+        { "code": "letters = ['a', 'b', 'c', 'd', 'e']\nprint(letters[1:3])  # ['b', 'c']\nprint(letters[:2])   # ['a', 'b']", "note": "A slice includes its start and stops before its stop." },
+        { "code": "letters = ['a', 'b', 'c']\nprint(letters[-2:])  # ['b', 'c']\nprint(letters[5:])   # []", "note": "Negative positions count from the end, and an empty range gives [] instead of an error." },
+        { "code": "shouted = []\nfor name in ['ann', 'bo']:\n    shouted.append(name.upper())\nprint(shouted)  # ['ANN', 'BO']", "note": ".append adds one item to the end of the list." },
+        { "code": "lengths = [len(w) for w in ['hi', 'hello'] if len(w) > 2]\nprint(lengths)  # [5]", "note": "A list comprehension builds the list in one line, with an optional if filter." }
+      ]
+    },
+    {
+      "id": "l3",
+      "title": "Remembering things across a loop",
+      "intro_md": "A variable made **before** the loop keeps its value from one step to the next. Use it to remember what you have seen so far. `in` checks whether a value is in a list.",
+      "examples": [
+        { "code": "print(3 in [1, 2, 3])    # True\nprint('x' not in 'abc')  # True", "note": "in checks membership, and not in is its opposite." },
+        { "code": "tags = ['a']\nif 'b' not in tags:\n    tags.append('b')\nprint(tags)  # ['a', 'b']", "note": "Combine not in with .append to add a value only once." },
+        { "code": "longest = ''\nfor w in ['to', 'tree', 'a']:\n    if len(w) > len(longest):\n        longest = w\nprint(longest)  # tree", "note": "longest carries the best word so far through the loop." },
+        { "code": "product = 1\nfor n in [2, 3, 4]:\n    product *= n\n    print(product)\n# 2\n# 6\n# 24", "note": "Update the variable with each item, then use its current value." }
+      ]
+    }
+  ],
   "exercises": [
     {
       "id": "ex1",
+      "lesson_id": "l1",
       "title": "First and last",
       "concept": "List indexing",
-      "lesson_md": "Every item in a list has a position called its index, and counting starts at 0. `colors[0]` is the first item. Negative indexes count from the end, so `colors[-1]` is the last item and `colors[-2]` the one before it.\n\n```python\ncolors = ['red', 'green', 'blue']\nprint(colors[1])   # green\nprint(colors[-2])  # green\n```",
       "prompt_md": "Write a function `first_and_last(items)` that returns a list with two values: the first item and the last item of `items`.\n\nYou can assume `items` has at least one element. For example, `first_and_last([4, 7, 9])` returns `[4, 9]`.",
       "hint_md": "Which index always points at the first item, and which one at the last item, no matter how long the list is?",
       "function_name": "first_and_last",
@@ -21,9 +57,9 @@
     },
     {
       "id": "ex2",
+      "lesson_id": "l1",
       "title": "Count the evens",
       "concept": "Looping over a list",
-      "lesson_md": "A `for` loop runs its body once for every item in a list. To count something, start a counter at 0 before the loop and add 1 inside an `if` when the item matches. The `%` operator gives the remainder of a division, so `7 % 3` is `1`.\n\n```python\nwords = ['hi', 'hello', 'hey']\nlong_words = 0\nfor w in words:\n    if len(w) > 2:\n        long_words += 1\n```",
       "prompt_md": "Write a function `count_evens(numbers)` that returns how many numbers in the list are even.\n\nA number is even when `n % 2 == 0`. For example, `count_evens([1, 2, 4, 7])` returns `2`.",
       "hint_md": "A number is even when dividing it by 2 leaves no remainder. Which operator from the lesson gives you that remainder?",
       "function_name": "count_evens",
@@ -38,9 +74,9 @@
     },
     {
       "id": "ex3",
+      "lesson_id": "l2",
       "title": "Middle slice",
       "concept": "Slicing",
-      "lesson_md": "A slice `items[start:stop]` copies part of a list. It includes `start` and stops before `stop`. Leave out `start` to begin at 0, and use a negative `stop` to count from the end. A slice never raises an error: when the range is empty it returns `[]`.\n\n```python\nletters = ['a', 'b', 'c', 'd', 'e']\nprint(letters[:2])   # ['a', 'b']\nprint(letters[-2:])  # ['d', 'e']\n```",
       "prompt_md": "Write a function `middle(items)` that returns a new list without the first and the last item.\n\nIf the list has two items or fewer, return an empty list. For example, `middle([1, 2, 3, 4])` returns `[2, 3]`.",
       "hint_md": "You want everything from the second item up to, but not including, the last one. Which start and stop give you that?",
       "function_name": "middle",
@@ -55,9 +91,9 @@
     },
     {
       "id": "ex4",
+      "lesson_id": "l2",
       "title": "Squares of the positives",
       "concept": "Building a new list",
-      "lesson_md": "To build a new list, start with an empty list and call `.append(value)` for each value you want to keep. Python also has a shorter form, a list comprehension: `[expression for x in items if condition]`.\n\n```python\nnames = ['ann', 'bo', 'cy']\nshouted = [n.upper() for n in names if len(n) > 2]\nprint(shouted)  # ['ANN']\n```",
       "prompt_md": "Write a function `positive_squares(numbers)` that returns a new list with the square of every number greater than zero, in the original order.\n\nFor example, `positive_squares([-1, 2, 3])` returns `[4, 9]`.",
       "hint_md": "Loop over the numbers, skip the ones that are not positive, and collect the square of each one you keep.",
       "function_name": "positive_squares",
@@ -71,9 +107,9 @@
     },
     {
       "id": "ex5",
+      "lesson_id": "l3",
       "title": "Remove duplicates",
       "concept": "Membership with in",
-      "lesson_md": "The `in` operator checks whether a value is in a list: `3 in [1, 2, 3]` is `True`, and `not in` is its opposite. Combined with `.append`, it lets you remember what you have already seen.\n\n```python\nseen = []\nfor c in 'banana':\n    if c not in seen:\n        seen.append(c)\nprint(seen)  # ['b', 'a', 'n']\n```",
       "prompt_md": "Write a function `unique(items)` that returns a new list with the duplicates removed. Keep the first time each value appears, in the original order.\n\nFor example, `unique([3, 1, 3, 2, 1])` returns `[3, 1, 2]`.",
       "hint_md": "Keep a result list. Before adding a value, check whether it is already in that list.",
       "function_name": "unique",
@@ -87,9 +123,9 @@
     },
     {
       "id": "ex6",
+      "lesson_id": "l3",
       "title": "Running total",
       "concept": "Accumulating values",
-      "lesson_md": "To accumulate, keep a variable that carries a value from one loop step to the next. Update it with every item, and record it whenever you need its current state.\n\n```python\nlongest = 0\nfor word in ['to', 'tree', 'a']:\n    longest = max(longest, len(word))\nprint(longest)  # 4\n```",
       "prompt_md": "Write a function `running_total(numbers)` that returns a list where each item is the sum of all numbers up to and including that position.\n\nFor example, `running_total([1, 2, 3])` returns `[1, 3, 6]`.",
       "hint_md": "Keep a running sum in a variable. After adding each number to it, append the sum's current value to the result.",
       "function_name": "running_total",
@@ -102,13 +138,13 @@
       ]
     }
   ],
-  "_dev_note": "ex2's task gives away `n % 2 == 0` on purpose, and ex6 has a wrong hidden test on purpose ([5, 0, 6] should be [5, 0, 5]). They exercise the leak rewrite and the repair path. The dev shim answers repair calls with _dev_repairs.",
+  "_dev_note": "ex2's task gives away `n % 2 == 0` on purpose, ex6 has a wrong hidden test on purpose ([5, 0, 6] should be [5, 0, 5]), and lesson l1's last example uses first_and_last on purpose. They exercise the leak rewrite, the repair path and the example leak check. The dev shim answers repair calls with _dev_repairs.",
   "_dev_repairs": {
     "ex2": {
       "id": "ex2",
+      "lesson_id": "l1",
       "title": "Count the evens",
       "concept": "Looping over a list",
-      "lesson_md": "A `for` loop runs its body once for every item in a list. To count something, start a counter at 0 before the loop and add 1 inside an `if` when the item matches. The `%` operator gives the remainder of a division, so `7 % 3` is `1`.\n\n```python\nwords = ['hi', 'hello', 'hey']\nlong_words = 0\nfor w in words:\n    if len(w) > 2:\n        long_words += 1\n```",
       "prompt_md": "Write a function `count_evens(numbers)` that returns how many numbers in the list are even.\n\nFor example, `count_evens([1, 2, 4, 7])` returns `2`.",
       "hint_md": "A number is even when dividing it by 2 leaves no remainder. Which operator from the lesson gives you that remainder?",
       "function_name": "count_evens",
@@ -123,9 +159,9 @@
     },
     "ex6": {
       "id": "ex6",
+      "lesson_id": "l3",
       "title": "Running total",
       "concept": "Accumulating values",
-      "lesson_md": "To accumulate, keep a variable that carries a value from one loop step to the next. Update it with every item, and record it whenever you need its current state.\n\n```python\nlongest = 0\nfor word in ['to', 'tree', 'a']:\n    longest = max(longest, len(word))\nprint(longest)  # 4\n```",
       "prompt_md": "Write a function `running_total(numbers)` that returns a list where each item is the sum of all numbers up to and including that position.\n\nFor example, `running_total([1, 2, 3])` returns `[1, 3, 6]`.",
       "hint_md": "Keep a running sum in a variable. After adding each number to it, append the sum's current value to the result.",
       "function_name": "running_total",

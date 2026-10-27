@@ -3,8 +3,14 @@ function newProgress(plan) {
   plan.exercises.forEach((ex, i) => {
     exercises[ex.id] = { status: i === 0 ? "open" : "locked", code: ex.starter_code, attempts: 0, hints_used: 0, passed_at: null };
   });
-  return { plan_id: plan.id, current_index: 0, unlocked_index: 0, exercises, updated_at: new Date().toISOString() };
+  const lessons = plan.lessons || [];
+  return { plan_id: plan.id, current_index: 0, current_lesson: lessons.length ? lessons[0].id : null, unlocked_index: 0, exercises, updated_at: new Date().toISOString() };
 }
+
+// Plans made before lessons existed have no "lessons"; every lookup below then finds nothing.
+const lessonIndex = (plan, id) => (plan.lessons || []).findIndex((l) => l.id === id);
+const lessonOf = (plan, ex) => (plan.lessons || [])[lessonIndex(plan, ex.lesson_id)] || null;
+const firstExerciseOf = (plan, lesson) => plan.exercises.findIndex((ex) => ex.lesson_id === lesson.id);
 
 function exState(ex) {
   const p = S.progress.exercises;

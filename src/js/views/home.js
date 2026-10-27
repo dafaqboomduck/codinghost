@@ -5,6 +5,7 @@ async function goHome() {
   S.progress = null;
   S.gen = null;
   S.confirm = null;
+  S.lesson = null;
   editor = null;
   setCrumb("");
   dbg.log("view", { view: "home" });

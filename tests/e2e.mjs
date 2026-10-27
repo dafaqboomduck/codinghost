@@ -236,6 +236,7 @@ try {
   await step("deleting a plan asks first, then removes it and its progress", async () => {
     await page.click("text=Back to plans");
     await page.locator(".plan-item").first().waitFor();
+    assert.equal(await page.locator(".plan-item .chip", { hasText: "legacy" }).count(), 0, "new plan marked legacy");
     await page.click(".plan-item >> button[aria-label^='Delete plan']");
     await page.click(".confirm >> text=Cancel");
     assert.equal(await page.locator(".plan-item").count(), 1);
@@ -247,6 +248,21 @@ try {
     assert.ok(!keys.some((k) => /\/(plans|progress)\//.test(k)), "left behind: " + keys.join(", "));
     await page.reload();
     await page.getByText("No plans yet").waitFor();
+  });
+
+  await step("plans made before lessons are marked legacy", async () => {
+    await page.evaluate(() => {
+      const all = JSON.parse(localStorage.getItem("codinghost-dev-db"));
+      const ex = { id: "ex1", title: "Old", concept: "Old", prompt_md: "Old task", function_name: "f", starter_code: "def f():\n    pass\n", reference_solution: "def f():\n    return 1\n", tests: [] };
+      all["data/users/dev-user/profile/plans/pold"] = { id: "pold", topic: "Old plan", level: "beginner", summary: "", exercises: [ex], created_at: "2026-10-01T00:00:00Z" };
+      localStorage.setItem("codinghost-dev-db", JSON.stringify(all));
+    });
+    await page.reload();
+    await page.locator(".plan-item", { hasText: "Old plan" }).locator(".chip", { hasText: "legacy" }).waitFor();
+    await page.click(".plan-item >> text=Start");
+    await page.locator(".task h2", { hasText: "Old" }).waitFor();
+    assert.equal(await page.locator(".strip .step.lesson").count(), 0);
+    assert.equal(await page.locator(".back-link").count(), 0);
   });
 
   await step("phone width has no horizontal scroll", async () => {

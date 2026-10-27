@@ -94,6 +94,7 @@ function renderPlanList() {
         h("span", { class: "title", text: plan.topic }),
         h("div", { class: "meta" },
           h("span", { class: "chip plain", text: plan.level }),
+          isLegacy(plan) ? h("span", { class: "chip plain warn", title: "Made before lessons. Generate a new plan to get them.", text: "legacy" }) : null,
           h("span", { class: "meter", "aria-hidden": "true" }, h("i", { style: "width: " + pct + "%" })),
           h("span", { class: "tabnum", text: done + " / " + total + " done" }),
           when ? h("span", { text: new Date(when).toLocaleDateString(undefined, { day: "numeric", month: "short" }) }) : null,
@@ -134,3 +135,6 @@ function trashButton(label, onclick) {
   btn.innerHTML = TRASH_SVG;
   return btn;
 }
+
+// Plans saved before lesson screens existed have no "lessons", including those with the older per-exercise lesson_md.
+const isLegacy = (plan) => !(plan.lessons && plan.lessons.length);

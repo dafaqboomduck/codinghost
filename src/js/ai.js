@@ -13,7 +13,9 @@ const ai = (() => {
     "id": "ex1",
     "title": "short title",
     "concept": "the one concept this exercise teaches",
+    "lesson_md": "a short lesson on the concept in Markdown, shown before the task",
     "prompt_md": "the task in Markdown",
+    "hint_md": "a first hint in Markdown, shown only when the learner asks",
     "function_name": "snake_case_name",
     "starter_code": "def snake_case_name(a, b):\\n    \\"\\"\\"One-line docstring.\\"\\"\\"\\n    pass\\n",
     "reference_solution": "def snake_case_name(a, b):\\n    return a + b\\n",
@@ -31,7 +33,9 @@ const ai = (() => {
 - 3 to 6 tests per exercise: at least 2 with "hidden": false and at least 1 with "hidden": true.
 - "args_py" is a Python tuple literal of the positional arguments, for example "(2, 3)", or "([1, 2, 3],)" for one argument. "expected_py" is a Python literal of the return value. Use only literals: numbers, strings, booleans, None, lists, tuples, dicts, sets.
 - Avoid float results unless the task says to round with round(x, 2). Avoid results with undefined order: ask for sorted lists instead.
-- "prompt_md" explains the task in 2 to 5 sentences of Markdown. It names the function and its parameters, says what it returns, and shows one example call in inline code.
+- "lesson_md" teaches the concept in 3 to 6 sentences plus one short \`\`\`python example. It names the functions, methods or syntax the learner needs. Its example solves a DIFFERENT problem than the exercise, so the learner must adapt it, not copy it. Never mention the exercise's function.
+- "prompt_md" explains the task in 2 to 5 sentences of Markdown. It names the function and its parameters, says what it returns, and shows one example call in inline code. It describes only the behavior: never name the function, method, pattern or expression that solves it, and never show part of the solution.
+- "hint_md" is 1 or 2 sentences that point toward the right tool or idea from the lesson, without code.
 - Write for a ${level} learner.`;
 
   function planPrompt(topic, level, count) {
@@ -90,7 +94,7 @@ Reply with only the corrected exercise as one JSON object with the same fields a
     return parts.join("\n\n") || "All tests passed.";
   }
 
-  function helpPrompt({ exercise, code, run, level, question }) {
+  function helpPrompt({ exercise, code, run, level, question, shownHint }) {
     return `You are a patient Python tutor inside a practice app. The learner is working on one exercise and asked for help.
 
 How to answer:
@@ -104,7 +108,10 @@ Exercise: ${exercise.title}
 Concept: ${exercise.concept}
 Task:
 ${exercise.prompt_md}
-
+${shownHint ? `
+The learner already read this hint, so go further than it:
+${exercise.hint_md}
+` : ""}
 Learner's code:
 \`\`\`python
 ${code}

@@ -85,13 +85,14 @@ try {
     await page.getByText("No plans yet").waitFor();
   });
 
-  await step("generate plan; broken ex6 is repaired, all 6 kept", async () => {
+  await step("generate plan; broken ex6 is repaired, leaky ex2 rewritten, all 6 kept", async () => {
     await page.fill("#topic", "Python lists");
     await page.click("text=Generate plan");
     await page.locator(".strip .step").first().waitFor({ timeout: 60000 });
     assert.equal(await page.locator(".strip .step").count(), 6);
     assert.equal(await page.locator(".strip .step:disabled").count(), 5);
     assert.equal(await page.locator(".doctest").innerText(), ">>> first_and_last([4, 7, 9])\n[4, 9]\n>>> first_and_last(['a', 'b'])\n['a', 'b']");
+    assert.ok(await page.locator("details.lesson[open] summary", { hasText: "Lesson: List indexing" }).isVisible());
   });
 
   await step("run with starter code shows failing visible tests", async () => {
@@ -122,6 +123,7 @@ try {
 
   await step("syntax error shows traceback and marks the line", async () => {
     await page.click("text=Next exercise");
+    assert.doesNotMatch(await page.locator(".task > .md").innerText(), /n % 2/, "leaky task was rewritten");
     await setCode("def count_evens(numbers)\n    return 0\n");
     await page.click("button:has-text('Run')");
     await page.locator(".term.err", { hasText: "SyntaxError" }).waitFor();
@@ -148,11 +150,13 @@ try {
     assert.ok(Date.now() - t0 < 1000, "run took " + (Date.now() - t0) + " ms");
   });
 
-  await step("help streams a hint and counts it", async () => {
+  await step("help shows the plan's hint first, then streams one from Claude", async () => {
     await page.click("button:has-text('Help me')");
-    await page.locator(".hint:not(.streaming)").waitFor({ timeout: 10000 });
-    assert.match(await page.locator(".hint .body").innerText(), /Which variable/);
+    await page.locator(".hint .body", { hasText: "remainder" }).waitFor();
     await page.getByText("Hints used: 1").waitFor();
+    await page.click("button:has-text('Next hint (2 of 3)')");
+    await page.locator(".hint:not(.streaming)", { hasText: "Which variable" }).waitFor({ timeout: 10000 });
+    await page.getByText("Hints used: 2").waitFor();
   });
 
   await step("reload resumes the plan, exercise and code", async () => {

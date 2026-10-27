@@ -35,6 +35,11 @@ function openExercise(i) {
   const task = h("section", { class: "panel task" },
     h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " · " + ex.concept }),
     h("h2", { text: ex.title }),
+    // Plans made before lessons existed have no lesson_md. Once solved, the lesson starts folded so the task leads.
+    ex.lesson_md ? h("details", { class: "lesson", open: !isDone(exState(ex)) },
+      h("summary", { text: "Lesson: " + ex.concept }),
+      md(ex.lesson_md),
+    ) : null,
     md(ex.prompt_md),
     h("div", { class: "stack", style: "gap: 6px" },
       h("h3", { text: "Examples" }),

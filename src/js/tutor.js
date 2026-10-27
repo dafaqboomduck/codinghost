@@ -5,12 +5,18 @@ function renderTutor() {
   const st = exState(ex);
   const hints = S.hints[ex.id] || [];
   const level = Math.min((st.hints_used || 0) + 1, 3);
+  const staticShown = !!(ex.hint_md && st.hint_shown);
+  const staticReady = !!(ex.hint_md && !st.hint_shown);
   const keepQuestion = document.getElementById("ask") ? document.getElementById("ask").value : "";
   el.textContent = "";
   el.append(h("div", { class: "row" }, h("h3", { text: "Tutor" }), h("span", { class: "spacer" }),
-    ai.available ? h("span", { class: "muted tabnum", style: "font-size: 13px", text: "Hints used: " + (st.hints_used || 0) }) : null));
+    ai.available || ex.hint_md ? h("span", { class: "muted tabnum", style: "font-size: 13px", text: "Hints used: " + (st.hints_used || 0) }) : null));
 
   renderReview(el, ex, st);
+
+  if (staticShown) {
+    el.append(h("div", { class: "hint" }, h("span", { class: "who", text: "Hint" }), h("div", { class: "body" }, md(ex.hint_md))));
+  }
 
   for (const hint of hints) {
     const body = h("div", { class: "body" });
@@ -25,13 +31,14 @@ function renderTutor() {
 
   if (ai.available) {
     const input = h("input", { type: "text", id: "ask", maxlength: "500", placeholder: "Optional: ask a specific question", autocomplete: "off", value: keepQuestion });
-    const btn = h("button", { class: "btn secondary", type: "button", disabled: S.helping, text: S.helping ? "Thinking…" : hints.length ? "Next hint (" + level + " of 3)" : "Help me" });
+    const btn = h("button", { class: "btn secondary", type: "button", disabled: S.helping, text: S.helping ? "Thinking…" : hints.length || staticShown ? "Next hint (" + level + " of 3)" : "Help me" });
     const ask = () => doHelp(input.value.trim());
     btn.addEventListener("click", ask);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ask(); } });
     el.append(h("div", { class: "tutor-ask" }, input, btn));
   } else {
-    el.append(h("p", { class: "muted", text: "The tutor needs Claude access, which is off for this page." }));
+    if (staticReady) el.append(h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => doHelp(""), text: "Show hint" })));
+    el.append(h("p", { class: "muted", text: "More help from the tutor needs Claude access, which is off for this page." }));
   }
 
   const allowSolution = (st.hints_used || 0) >= SOLUTION_AFTER || (st.attempts || 0) >= SOLUTION_AFTER || st.status === "solution_shown";
@@ -70,10 +77,21 @@ function revealSolution() {
   renderTutor();
 }
 
+// The plan's own hint comes first: it is free and instant. A typed question skips it, since it does not answer anything.
+function showStaticHint(ex, st) {
+  dbg.log("help", { exercise: ex.id, level: 1, static: true });
+  st.hint_shown = true;
+  st.hints_used = Math.max(st.hints_used || 0, 1);
+  saveProgressNow();
+  renderTutor();
+}
+
 async function doHelp(question) {
-  if (S.helping || !ai.available) return;
+  if (S.helping) return;
   const ex = S.plan.exercises[S.index];
   const st = exState(ex);
+  if (!question && ex.hint_md && !st.hint_shown) return showStaticHint(ex, st);
+  if (!ai.available) return;
   const level = Math.min((st.hints_used || 0) + 1, 3);
   dbg.log("help", { exercise: ex.id, level, question: !!question });
   const hint = { level, question, text: "", streaming: true, error: null };
@@ -84,7 +102,7 @@ async function doHelp(question) {
   renderTutor();
   let pendingFrame = false;
   try {
-    const res = await ai.help({ exercise: ex, code: editor.getValue(), run: S.lastRun[ex.id], level, question }, {
+    const res = await ai.help({ exercise: ex, code: editor.getValue(), run: S.lastRun[ex.id], level, question, shownHint: !!st.hint_shown }, {
       onText: ({ text }) => {
         hint.text = text;
         if (!pendingFrame) {

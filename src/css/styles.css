@@ -178,6 +178,10 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .strip .summary { margin-left: auto; font-size: 13px; color: var(--muted); }
 .ex-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
 .task { display: grid; gap: 14px; }
+.lesson { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--sunken); padding: 10px 14px; }
+.lesson summary { cursor: pointer; font-weight: 600; }
+.lesson[open] summary { margin-bottom: 10px; }
+.lesson .md :not(pre) > code { background: var(--surface); }
 .md { display: grid; gap: 10px; max-width: 65ch; overflow-wrap: anywhere; }
 .md p, .md ul, .md ol { margin: 0; }
 .md ul, .md ol { padding-left: 22px; }

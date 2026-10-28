@@ -94,41 +94,70 @@ function openExercise(i) {
   window.scrollTo({ top: 0 });
 }
 
+// Lesson markers and exercise dots on one track, in the same dot language as the lesson pages.
+// h() builds HTML elements only, so the icons go in as markup; the strings are constant.
+const STRIP_ICONS = {
+  book: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>',
+  done: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+  locked: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+};
+
 function renderStrip() {
   const strip = document.getElementById("strip");
   if (!strip) return;
   strip.textContent = "";
-  let prevLesson = null;
+  const track = h("div", { class: "track" });
+  let group = null;
+  let prevLesson;
   S.plan.exercises.forEach((ex, i) => {
     const st = exState(ex);
     const lesson = lessonOf(S.plan, ex);
-    if (lesson && lesson !== prevLesson) {
-      const li = lessonIndex(S.plan, lesson.id);
-      const locked = st.status === "locked";
-      strip.append(h("button", {
-        class: "step lesson" + (S.lesson === li ? " current" : ""), type: "button", disabled: locked,
-        "aria-current": S.lesson === li ? "step" : null,
-        "aria-label": "Lesson " + (li + 1) + ", " + lesson.title + (locked ? ", locked" : ""),
-        title: lesson.title,
-        onclick: () => openLesson(li),
-        text: "L" + (li + 1),
-      }));
+    // Plans without lessons get a single group of dots and no markers.
+    if (!group || lesson !== prevLesson) {
+      group = h("div", { class: "track-group" });
+      track.append(group);
+      if (lesson) group.append(lessonMarker(lesson));
     }
     prevLesson = lesson;
     const current = S.lesson == null && i === S.index;
-    const cls = ["step", st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : "", current ? "current" : ""].join(" ");
-    const stateLabel = st.status === "locked" ? "locked" : st.status === "passed" ? "passed" : st.status === "solution_shown" ? "completed with solution" : "open";
-    strip.append(h("button", {
-      class: cls, type: "button", disabled: st.status === "locked",
+    const state = current ? "current" : st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : st.status === "locked" ? "locked" : "open";
+    const stateLabel = { current: "you are here", passed: "passed", solution: "completed with solution", locked: "locked", open: "open" }[state];
+    if (lesson || group.childElementCount) group.append(h("span", { class: "seg" + (isDone(st) ? " done" : ""), "aria-hidden": "true" }));
+    group.append(h("button", {
+      class: "step " + state, type: "button", disabled: st.status === "locked",
       "aria-current": current ? "step" : null,
       "aria-label": "Exercise " + (i + 1) + ", " + ex.title + ", " + stateLabel,
-      title: ex.title + " (" + stateLabel + ")",
+      title: "Exercise " + (i + 1) + ": " + ex.title + " (" + stateLabel + ")",
       onclick: () => openExercise(i),
-      text: String(i + 1),
     }));
   });
+
+  const ex = S.plan.exercises[S.index];
+  const lesson = S.lesson != null ? S.plan.lessons[S.lesson] : lessonOf(S.plan, ex);
+  const where = S.lesson != null ? null : "Exercise " + (S.index + 1) + " of " + S.plan.exercises.length;
+  const label = h("span", { class: "track-label" },
+    lesson ? ["Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + " · ", h("strong", { text: lesson.title })] : null,
+    where ? (lesson ? " · " : "") + where : null,
+  );
   const done = countDone(S.plan, S.progress);
-  strip.append(h("span", { class: "summary tabnum", text: done + " of " + S.plan.exercises.length + " done · " + S.plan.level }));
+  strip.append(track, label, h("span", { class: "summary tabnum", text: done + " of " + S.plan.exercises.length + " done · " + S.plan.level }));
+}
+
+function lessonMarker(lesson) {
+  const li = lessonIndex(S.plan, lesson.id);
+  const mine = S.plan.exercises.filter((ex) => ex.lesson_id === lesson.id).map(exState);
+  const locked = mine[0].status === "locked";
+  const here = S.lesson === li || (S.lesson == null && S.plan.exercises[S.index].lesson_id === lesson.id);
+  const state = mine.every(isDone) ? "done" : here ? "current" : locked ? "locked" : "open";
+  const btn = h("button", {
+    class: "step lesson " + state, type: "button", disabled: locked,
+    "aria-current": S.lesson === li ? "step" : null,
+    "aria-label": "Lesson " + (li + 1) + ", " + lesson.title + (locked ? ", locked" : ""),
+    title: "Lesson " + (li + 1) + ": " + lesson.title,
+    onclick: () => openLesson(li),
+  });
+  btn.innerHTML = STRIP_ICONS[state === "done" ? "done" : locked ? "locked" : "book"];
+  return btn;
 }
 
 function planComplete() {

@@ -60,8 +60,8 @@ try {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/favicon|fonts\.g|status of 404/.test(m.text())) errors.push("console: " + m.text()); });
   const setCode = (code) => page.evaluate((c) => document.querySelector(".CodeMirror").CodeMirror.setValue(c), code);
-  // Exercise steps are numbered "1", "2", ...; lesson steps "L1", "L2", ... would also match a plain hasText.
-  const exStep = (n) => page.locator(".strip .step:not(.lesson)", { hasText: new RegExp("^" + n + "$") });
+  // Strip dots have no visible text, so steps are found by their labels.
+  const exStep = (n) => page.locator(`.strip .step[aria-label^="Exercise ${n},"]`);
   const getCode = () => page.evaluate(() => document.querySelector(".CodeMirror").CodeMirror.getValue());
 
   await page.goto(base);
@@ -193,7 +193,7 @@ try {
     await page.waitForTimeout(2500); // let the debounced save land
     await page.reload();
     await page.locator("button", { hasText: "Continue" }).click();
-    await page.locator(".step.current:not(.lesson)", { hasText: /^2$/ }).waitFor();
+    await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
     assert.match(await getCode(), /sum\(1 for n in numbers/);
   });
 
@@ -234,7 +234,7 @@ try {
       if (n === 2) {
         await page.click("text=Next lesson →");
         await page.locator(".lesson-view h2", { hasText: "Slices" }).waitFor();
-        await page.locator(".step.lesson.current", { hasText: "L2" }).waitFor();
+        await page.locator('.strip .step.lesson[aria-current="step"][aria-label^="Lesson 2,"]').waitFor();
       }
     }
     await exStep(6).click();

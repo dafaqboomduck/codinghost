@@ -118,6 +118,7 @@ try {
     await page.click("text=Try it yourself");
     assert.equal(await page.locator(".doctest").innerText(), ">>> first_and_last([4, 7, 9])\n[4, 9]\n>>> first_and_last(['a', 'b'])\n['a', 'b']");
     assert.equal(await page.locator(".task .example").count(), 0, "lesson is not on the exercise screen");
+    assert.doesNotMatch(await page.locator(".task > .md").innerText(), /for example/i, "the Examples box already shows the calls");
     await page.click("text=← Lesson: Reading a list");
     await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
     await page.click(".lesson-view .dot >> nth=-1");

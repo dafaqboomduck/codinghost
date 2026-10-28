@@ -45,10 +45,10 @@ const ai = (() => {
 - Every exercise asks the learner to write ONE function, named in "function_name". No classes, no input(), no printing required, no files or network. Standard library only: never import a third-party package.
 - "starter_code" is the def line with its parameters, a one-line docstring, and \`pass\`.
 - "reference_solution" is a complete, correct implementation of the same function.
-- 3 to 6 tests per exercise: at least 2 with "hidden": false and at least 1 with "hidden": true.
+- 3 to 6 tests per exercise: at least 2 with "hidden": false and at least 1 with "hidden": true. The app shows the visible tests below the task as its examples, so the first visible test is a typical case, not an edge case.
 - "args_py" is a Python tuple literal of the positional arguments, for example "(2, 3)", or "([1, 2, 3],)" for one argument. "expected_py" is a Python literal of the return value. Use only literals: numbers, strings, booleans, None, lists, tuples, dicts, sets.
 - Avoid float results unless the task says to round with round(x, 2). Avoid results with undefined order: ask for sorted lists instead.
-- "prompt_md" explains the task in 2 to 5 sentences of Markdown. It names the function and its parameters, says what it returns, and shows one example call in inline code. It describes only the behavior: never name the function, method, pattern or expression that solves it, and never show part of the solution.
+- "prompt_md" explains the task in 2 to 5 sentences of Markdown. It names the function and its parameters and says what it returns. Do not include example calls or "for example": the visible tests already show them. It describes only the behavior: never name the function, method, pattern or expression that solves it, and never show part of the solution.
 - "hint_md" is 1 or 2 sentences that point toward the right tool or idea from the exercise's lesson, without code.
 - Write for a ${level} learner.`;
 

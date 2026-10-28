@@ -97,16 +97,30 @@ try {
     assert.equal(await page.locator(".strip .step.lesson:disabled").count(), 2);
   });
 
-  await step("a new plan opens on lesson 1; its leaky example is dropped; try it yourself opens exercise 1", async () => {
+  await step("a new plan opens on lesson 1, one page per concept; the leaky example is dropped", async () => {
     await page.locator(".lesson-view h2", { hasText: "Reading a list" }).waitFor();
-    assert.equal(await page.locator(".lesson-view .example").count(), 4);
+    assert.equal(await page.locator(".lesson-view .dot").count(), 3);
+    assert.equal(await page.locator(".lesson-view .page-title").innerText(), "Indexes: items[0], items[-1]");
+    assert.equal(await page.locator(".lesson-view .example").count(), 1);
+    assert.equal(await page.locator("text=Try it yourself").count(), 0, "only the last page leads to the exercises");
+    await page.click("text=Next →");
+    await page.locator(".lesson-view .page-title", { hasText: "for loops" }).waitFor();
+    await page.click("text=← Back");
+    await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
+    await page.click(".lesson-view .dot >> nth=2");
+    await page.locator(".lesson-view .page-title", { hasText: "The % operator" }).waitFor();
+    assert.equal(await page.locator(".lesson-view .example").count(), 2);
     assert.equal(await page.locator(".lesson-view", { hasText: "first_and_last" }).count(), 0);
+    if (shots) await page.screenshot({ path: path.join(shots, "lesson.png"), fullPage: true });
+  });
+
+  await step("try it yourself opens exercise 1, which links back to the lesson", async () => {
     await page.click("text=Try it yourself");
     assert.equal(await page.locator(".doctest").innerText(), ">>> first_and_last([4, 7, 9])\n[4, 9]\n>>> first_and_last(['a', 'b'])\n['a', 'b']");
     assert.equal(await page.locator(".task .example").count(), 0, "lesson is not on the exercise screen");
     await page.click("text=← Lesson: Reading a list");
-    await page.locator(".lesson-view").waitFor();
-    if (shots) await page.screenshot({ path: path.join(shots, "lesson.png"), fullPage: true });
+    await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
+    await page.click(".lesson-view .dot >> nth=-1");
     await page.click("text=Try it yourself");
     await page.locator(".doctest").waitFor();
   });
@@ -265,6 +279,24 @@ try {
     assert.equal(await page.locator(".back-link").count(), 0);
   });
 
+  await step("lessons saved before pages existed read as a single page", async () => {
+    await page.evaluate(() => {
+      const all = JSON.parse(localStorage.getItem("codinghost-dev-db"));
+      const ex = { id: "ex1", lesson_id: "l1", title: "Flat", concept: "Flat", prompt_md: "Flat task", hint_md: "Hint", function_name: "f", starter_code: "def f():\n    pass\n", reference_solution: "def f():\n    return 1\n", tests: [] };
+      const lesson = { id: "l1", title: "Flat lesson", intro_md: "One intro for everything.", examples: [{ code: "print(1)  # 1", note: "a note" }, { code: "print(2)  # 2", note: "" }] };
+      all["data/users/dev-user/profile/plans/pflat"] = { id: "pflat", topic: "Flat plan", level: "beginner", summary: "", lessons: [lesson], exercises: [ex], created_at: "2026-10-02T00:00:00Z" };
+      localStorage.setItem("codinghost-dev-db", JSON.stringify(all));
+    });
+    await page.click("#brand");
+    await page.click(".plan-item:has-text('Flat plan') >> text=Start");
+    await page.locator(".lesson-view h2", { hasText: "Flat lesson" }).waitFor();
+    assert.equal(await page.locator(".lesson-view .dot").count(), 0);
+    assert.equal(await page.locator(".lesson-view .example").count(), 2);
+    await page.getByText("One intro for everything.").waitFor();
+    await page.click("text=Try it yourself");
+    await page.locator(".task h2", { hasText: "Flat" }).waitFor();
+  });
+
   await step("phone width has no horizontal scroll", async () => {
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
     const p = await phone.newPage();
@@ -278,6 +310,7 @@ try {
     await p.locator(".strip .step").first().waitFor({ timeout: 60000 });
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "lesson overflows");
     if (shots) await p.screenshot({ path: path.join(shots, "phone-lesson-dark.png"), fullPage: true });
+    await p.click(".lesson-view .dot >> nth=-1");
     await p.click("text=Try it yourself");
     await p.locator(".doctest").waitFor();
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "exercise overflows");

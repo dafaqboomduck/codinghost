@@ -12,9 +12,14 @@ const ai = (() => {
   {
     "id": "l1",
     "title": "short title",
-    "intro_md": "2 to 4 sentences of Markdown that introduce the lesson's tools",
-    "examples": [
-      { "code": "words = ['hi', 'hello']\nprint(len(words))  # 2", "note": "one sentence on what to notice" }
+    "pages": [
+      {
+        "title": "the one tool this page teaches, for example len()",
+        "body_md": "1 to 3 sentences of Markdown on what the tool does",
+        "examples": [
+          { "code": "words = ['hi', 'hello']\\nprint(len(words))  # 2", "note": "one sentence on what to notice" }
+        ]
+      }
     ]
   }
 ],
@@ -49,8 +54,10 @@ const ai = (() => {
 
   const LESSON_RULES = (count) => `Lesson rules:
 - Write ${Math.ceil(count / 2)} lessons. The learner reads a lesson on its own screen, then solves its exercises without the lesson in view.
-- A lesson introduces the functions, methods and syntax that its exercises need. "intro_md" says what they are for; the examples show how they behave.
-- 3 or 4 examples per lesson. Each "code" is a short snippet of at most 6 lines that prints its results, with the printed output in a comment after each print. Each "note" says in one sentence what to notice.
+- A lesson has 2 to 4 pages, shown one at a time. Each page teaches exactly ONE function, method or piece of syntax, named in its "title".
+- Every tool an exercise needs has its own page, in the exercise's lesson or an earlier one. Never mention a tool in passing, for example in a list of "useful pieces", without giving it a page.
+- "body_md" is 1 to 3 sentences on what the tool does and when to use it.
+- 1 or 2 examples per page. Each "code" is a short snippet of at most 6 lines that prints its results, with the printed output in a comment after each print. Each "note" says in one sentence what to notice.
 - Examples solve DIFFERENT problems than the exercises, so the learner must adapt them, not copy them. Never use an exercise's function name or any line of its solution.
 - Order "exercises" lesson by lesson. Each exercise's "lesson_id" is the lesson it practices. Give each lesson 1 or 2 exercises, easiest first.`;
 
@@ -129,7 +136,7 @@ ${exercise.prompt_md}
 ${lesson ? `
 The learner read this lesson before the exercise. Point back to it when it helps:
 ${lesson.title}
-${lesson.examples.map((e) => e.code).join("\n\n")}
+${lessonPages(lesson).flatMap((p) => p.examples.map((e) => e.code)).join("\n\n")}
 ` : ""}${shownHint ? `
 The learner already read this hint, so go further than it:
 ${exercise.hint_md}

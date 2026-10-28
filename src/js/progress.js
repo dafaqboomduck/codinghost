@@ -11,6 +11,8 @@ function newProgress(plan) {
 const lessonIndex = (plan, id) => (plan.lessons || []).findIndex((l) => l.id === id);
 const lessonOf = (plan, ex) => (plan.lessons || [])[lessonIndex(plan, ex.lesson_id)] || null;
 const firstExerciseOf = (plan, lesson) => plan.exercises.findIndex((ex) => ex.lesson_id === lesson.id);
+// Lessons published before pages existed hold one intro and a flat example list; they read as a single page.
+const lessonPages = (lesson) => lesson.pages || [{ title: "", body_md: lesson.intro_md || "", examples: lesson.examples || [] }];
 
 function exState(ex) {
   const p = S.progress.exercises;

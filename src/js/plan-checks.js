@@ -51,7 +51,7 @@ function exampleLeaks(code, ex) {
 }
 
 // Keeps the lessons that still have exercises, groups exercises under their lesson in lesson order,
-// and drops examples that leak. Renumbers lessons to l1, l2, ... A plan without lessons stays without.
+// and drops examples that leak, then pages left with nothing to show. Renumbers lessons to l1, l2, ... A plan without lessons stays without.
 function shapeLessons(raw, exercises) {
   const lessons = (Array.isArray(raw.lessons) ? raw.lessons : []).filter((l) => l && typeof l.id === "string" && typeof l.title === "string");
   if (!lessons.length) {
@@ -71,11 +71,15 @@ function shapeLessons(raw, exercises) {
   return groups.map((g, i) => {
     const id = "l" + (i + 1);
     g.exercises.forEach((ex) => { ex.lesson_id = id; });
-    const examples = (Array.isArray(g.lesson.examples) ? g.lesson.examples : [])
-      .filter((e) => e && typeof e.code === "string" && e.code.trim())
-      .map((e) => ({ code: e.code.replace(/\s+$/, ""), note: typeof e.note === "string" ? e.note : "" }))
-      .filter((e) => !g.exercises.some((ex) => exampleLeaks(e.code, ex)));
-    return { id, title: g.lesson.title, intro_md: typeof g.lesson.intro_md === "string" ? g.lesson.intro_md : "", examples };
+    const pages = (Array.isArray(g.lesson.pages) ? g.lesson.pages : []).filter((p) => p && typeof p === "object").map((p) => ({
+      title: typeof p.title === "string" ? p.title : "",
+      body_md: typeof p.body_md === "string" ? p.body_md : "",
+      examples: (Array.isArray(p.examples) ? p.examples : [])
+        .filter((e) => e && typeof e.code === "string" && e.code.trim())
+        .map((e) => ({ code: e.code.replace(/\s+$/, ""), note: typeof e.note === "string" ? e.note : "" }))
+        .filter((e) => !g.exercises.some((ex) => exampleLeaks(e.code, ex))),
+    })).filter((p) => p.body_md.trim() || p.examples.length);
+    return { id, title: g.lesson.title, pages };
   });
 }
 

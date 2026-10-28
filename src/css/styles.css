@@ -185,6 +185,13 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .example { margin: 0; display: grid; gap: 6px; }
 .example figcaption { font-size: 14px; color: var(--muted); max-width: 65ch; }
 .step.lesson { font-size: 13px; }
+.lesson-view .page-title { font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+.lesson-nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.dots { display: flex; gap: 2px; }
+/* 24px hit area around an 8px dot, so it stays tappable on a phone */
+.dot { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.dot.current::before { background: var(--accent); }
 .back-link { justify-self: start; padding-inline: 0; font-size: 13px; }
 .md { display: grid; gap: 10px; max-width: 65ch; overflow-wrap: anywhere; }
 .md p, .md ul, .md ol { margin: 0; }

@@ -22,7 +22,7 @@ function openExercise(i) {
   if (S.progress.current_index !== i || S.progress.current_lesson) { S.progress.current_index = i; S.progress.current_lesson = null; saveProgressSoon(); }
   const ex = S.plan.exercises[i];
   dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
-  setCrumb(S.plan.topic + " · " + (i + 1) + " / " + S.plan.exercises.length);
+  setCrumb("");
   viewEl.textContent = "";
 
   const strip = h("nav", { class: "strip", id: "strip", "aria-label": "Exercises" });
@@ -38,8 +38,8 @@ function openExercise(i) {
   // The lesson stays one click away instead of on screen: recalling it is the practice.
   const lesson = lessonOf(S.plan, ex);
   const task = h("section", { class: "panel task" },
-    lesson ? h("div", {}, h("button", { class: "btn ghost back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson: " + lesson.title })) : null,
-    h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " · " + ex.concept }),
+    lesson ? h("div", {}, h("button", { class: "btn ghost back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + ": " + lesson.title })) : null,
+    h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " of " + S.plan.exercises.length + " · " + ex.concept }),
     h("h2", { text: ex.title }),
     md(ex.prompt_md),
     h("div", { class: "stack", style: "gap: 6px" },
@@ -94,7 +94,9 @@ function openExercise(i) {
   window.scrollTo({ top: 0 });
 }
 
-// Lesson markers and exercise dots on one track, in the same dot language as the lesson pages.
+// Course header: title and level on the left, the track and a done count on the right.
+// It is the only place that shows course-wide progress; the task card names the lesson and exercise.
+// Lesson markers and exercise dots share the dot language of the lesson pages.
 // h() builds HTML elements only, so the icons go in as markup; the strings are constant.
 const STRIP_ICONS = {
   book: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>',
@@ -132,15 +134,13 @@ function renderStrip() {
     }));
   });
 
-  const ex = S.plan.exercises[S.index];
-  const lesson = S.lesson != null ? S.plan.lessons[S.lesson] : lessonOf(S.plan, ex);
-  const where = S.lesson != null ? null : "Exercise " + (S.index + 1) + " of " + S.plan.exercises.length;
-  const label = h("span", { class: "track-label" },
-    lesson ? ["Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + " · ", h("strong", { text: lesson.title })] : null,
-    where ? (lesson ? " · " : "") + where : null,
-  );
   const done = countDone(S.plan, S.progress);
-  strip.append(track, label, h("span", { class: "summary tabnum", text: done + " of " + S.plan.exercises.length + " done · " + S.plan.level }));
+  const total = S.plan.exercises.length;
+  strip.append(
+    h("div", { class: "course-name" }, h("h1", { class: "course-title", text: S.plan.topic }), h("span", { class: "chip plain", text: S.plan.level })),
+    h("div", { class: "course-progress" }, track,
+      h("span", { class: "count tabnum", title: done + " of " + total + " done", "aria-label": done + " of " + total + " exercises done", text: done + "/" + total })),
+  );
 }
 
 function lessonMarker(lesson) {

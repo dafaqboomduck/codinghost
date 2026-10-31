@@ -168,14 +168,15 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .steps .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 
 /* Exercise */
-.strip { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
-.strip .summary { margin-left: auto; font-size: 13px; color: var(--muted); }
+.strip { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.course-name { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.course-title { font-size: 22px; overflow-wrap: anywhere; }
+.course-progress { display: flex; gap: 12px; align-items: center; }
+.count { font: 600 12px var(--font-mono); color: var(--muted); padding: 2px 8px; border-radius: 999px; background: var(--sunken); white-space: nowrap; }
 .track { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
 .track-group { display: flex; align-items: center; }
 .track .seg { width: 14px; height: 2px; background: var(--border-strong); flex: none; }
 .track .seg.done { background: var(--ok); }
-.track-label { font-size: 14px; color: var(--muted); min-width: 0; }
-.track-label strong { color: var(--fg); font-weight: 600; }
 /* Exercise dot: 24px hit area around a 10px mark, so it stays tappable on a phone */
 .step { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; flex: none; }
 .step::before { content: ""; width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; }
@@ -315,7 +316,6 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket { color: var(--bad); }
   .topbar .wrap { min-height: 48px; gap: 4px 12px; }
   .actions .btn .kbd { display: none; }
   .stats { grid-template-columns: minmax(0, 1fr); }
-  .strip .summary { margin-left: 0; width: 100%; }
   /* Shorter connectors so 3 lessons and 6 exercises still fit on one line */
   .track .seg { width: 7px; }
   .track { column-gap: 10px; }

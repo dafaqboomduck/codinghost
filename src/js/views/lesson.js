@@ -15,7 +15,7 @@ function openLesson(li, page = 0) {
   editor = null;
   if (S.progress.current_lesson !== lesson.id) { S.progress.current_lesson = lesson.id; saveProgressSoon(); }
   dbg.log("view", { view: "lesson", plan: S.plan.id, lesson: lesson.id, page: pi });
-  setCrumb(S.plan.topic + " · Lesson " + (li + 1) + " / " + S.plan.lessons.length);
+  setCrumb("");
   viewEl.textContent = "";
 
   const count = S.plan.exercises.filter((ex) => ex.lesson_id === lesson.id).length;

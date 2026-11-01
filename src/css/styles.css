@@ -192,6 +192,7 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .step.lesson.current { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .step.lesson.locked { opacity: .45; }
 .ex-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+.side { display: grid; gap: 12px; min-width: 0; }
 .task { display: grid; gap: 14px; }
 .lesson-view { display: grid; gap: 16px; max-width: 820px; }
 .examples { display: grid; gap: 14px; }

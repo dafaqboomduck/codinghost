@@ -54,10 +54,10 @@ function openExercise(i) {
     h("div", { class: "editor-box" }, h("div", { class: "editor-head" }, h("span", { text: "solution.py" }), h("span", { class: "spacer" }), h("span", { text: "Ctrl+Enter runs" })), host),
     h("div", { id: "actions", class: "stack", style: "gap: 10px" }),
     h("div", { id: "output", class: "out", "aria-live": "polite" }),
-    h("div", { id: "tutor", class: "panel tutor" }),
   );
+  const side = h("div", { class: "side" }, task, h("div", { id: "tutor", class: "panel tutor" }));
 
-  viewEl.append(strip, h("div", { id: "banner" }), h("div", { class: "ex-grid" }, task, work));
+  viewEl.append(strip, h("div", { id: "banner" }), h("div", { class: "ex-grid" }, side, work));
 
   const st = exState(ex);
   editor = CodeMirror(host, {

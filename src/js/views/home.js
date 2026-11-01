@@ -57,6 +57,7 @@ function renderNewPlanForm() {
     h("div", { class: "field" }, h("span", { text: "Level" }), level),
     h("label", { class: "field", for: "count" }, "Length", count),
     h("div", { class: "row" }, submit),
+    h("p", { class: "muted", style: "font-size: 13px", text: "Plans use only Python's core packages (the standard library). Topics that need numpy, pandas, requests and similar packages are not supported." }),
     h("p", { class: "muted", style: "font-size: 13px" }, "Before you see an exercise, its reference solution is run against its tests. Broken exercises are fixed or dropped."),
     !canGenerate && S.caps ? h("div", { class: "notice warn", text: "Claude access is off for this page, so new plans cannot be written. You can still continue your saved plans." }) : null,
   );

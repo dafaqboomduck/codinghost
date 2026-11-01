@@ -80,6 +80,8 @@ function openExercise(i) {
       "Shift-Tab": (cm) => cm.indentSelection("subtract"),
     },
   });
+  // Added after construction so it outranks the closebrackets keymap.
+  editor.addKeyMap({ "'\"'": quoteKey('"'), "'\''": quoteKey("'") });
   editor.on("change", () => {
     clearErrorLine();
     exState(ex).code = editor.getValue();
@@ -92,6 +94,36 @@ function openExercise(i) {
   renderOutput();
   renderTutor();
   window.scrollTo({ top: 0 });
+}
+
+// Stock closebrackets skips pairing after a word char, so r"..." and f'...' get one quote.
+// It also pairs after "]" or "}", so a closing quote typed after them doubles up.
+// Handle both cases here; everything else falls through to the default.
+function quoteKey(q) {
+  return (cm) => {
+    if (cm.somethingSelected()) return CodeMirror.Pass;
+    const cur = cm.getCursor();
+    const line = cm.getLine(cur.line);
+    const before = line.slice(0, cur.ch);
+    if (line.charAt(cur.ch) === q) {
+      cm.execCommand("goCharRight");
+      return;
+    }
+    // Leave triple quotes to the default handler.
+    if (before.endsWith(q + q)) return CodeMirror.Pass;
+    const tok = cm.getTokenAt(cur);
+    const closed = new RegExp("^[rRbBuUfF]{0,2}" + q + "(?:\\\\.|[^\\\\" + q + "])*" + q + "$");
+    if (tok.type && /string/.test(tok.type) && !closed.test(tok.string)) {
+      cm.replaceSelection(q, "end");
+      return;
+    }
+    if (/(?:^|[^\w])[rRbBuUfF]{1,2}$/.test(before)) {
+      cm.replaceSelection(q + q, "end");
+      cm.execCommand("goCharLeft");
+      return;
+    }
+    return CodeMirror.Pass;
+  };
 }
 
 // Course header: title and level on the left, the track and a done count on the right.

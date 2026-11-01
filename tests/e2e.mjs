@@ -129,6 +129,22 @@ try {
     await page.locator(".doctest").waitFor();
   });
 
+  await step("editor pairs quotes after a string prefix and does not double a closing quote", async () => {
+    const starter = await getCode();
+    const type = async (text) => {
+      await setCode("");
+      await page.locator(".CodeMirror").click();
+      await page.keyboard.type(text);
+      return getCode();
+    };
+    assert.equal(await type('x = r"'), 'x = r""');
+    assert.equal(await type("x = f'"), "x = f''");
+    assert.equal(await type('re.findall(r"\\d{2}[A-B]{4}", text)'), 're.findall(r"\\d{2}[A-B]{4}", text)');
+    assert.equal(await type("don't"), "don't");
+    assert.equal(await type('"it\'s"'), '"it\'s"');
+    await setCode(starter);
+  });
+
   await step("run with starter code shows failing visible tests", async () => {
     await page.click("button:has-text('Run')");
     await page.locator(".out-summary", { hasText: "failed" }).waitFor();

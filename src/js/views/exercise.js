@@ -3,7 +3,9 @@ function openPlan(plan, progress) {
   S.progress = progress || newProgress(plan);
   const idx = Math.min(S.progress.current_index || 0, plan.exercises.length - 1);
   store.saveProfile({ last_plan_id: plan.id, updated_at: new Date().toISOString() }).catch(() => {});
-  openExercise(idx);
+  const li = lessonIndex(plan, S.progress.current_lesson);
+  if (li >= 0 && canOpen(firstExerciseOf(plan, plan.lessons[li]))) openLesson(li);
+  else openExercise(idx);
 }
 
 function canOpen(i) {
@@ -15,11 +17,12 @@ function openExercise(i) {
   if (!canOpen(i)) return;
   if (saveTimer) saveProgressNow();
   S.index = i;
+  S.lesson = null;
   S.confirm = null;
-  if (S.progress.current_index !== i) { S.progress.current_index = i; saveProgressSoon(); }
+  if (S.progress.current_index !== i || S.progress.current_lesson) { S.progress.current_index = i; S.progress.current_lesson = null; saveProgressSoon(); }
   const ex = S.plan.exercises[i];
   dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
-  setCrumb(S.plan.topic + " · " + (i + 1) + " / " + S.plan.exercises.length);
+  setCrumb("");
   viewEl.textContent = "";
 
   const strip = h("nav", { class: "strip", id: "strip", "aria-label": "Exercises" });
@@ -32,8 +35,11 @@ function openExercise(i) {
     ]),
   );
 
+  // The lesson stays one click away instead of on screen: recalling it is the practice.
+  const lesson = lessonOf(S.plan, ex);
   const task = h("section", { class: "panel task" },
-    h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " · " + ex.concept }),
+    lesson ? h("div", {}, h("button", { class: "btn ghost back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + ": " + lesson.title })) : null,
+    h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " of " + S.plan.exercises.length + " · " + ex.concept }),
     h("h2", { text: ex.title }),
     md(ex.prompt_md),
     h("div", { class: "stack", style: "gap: 6px" },
@@ -48,10 +54,10 @@ function openExercise(i) {
     h("div", { class: "editor-box" }, h("div", { class: "editor-head" }, h("span", { text: "solution.py" }), h("span", { class: "spacer" }), h("span", { text: "Ctrl+Enter runs" })), host),
     h("div", { id: "actions", class: "stack", style: "gap: 10px" }),
     h("div", { id: "output", class: "out", "aria-live": "polite" }),
-    h("div", { id: "tutor", class: "panel tutor" }),
   );
+  const side = h("div", { class: "side" }, task, h("div", { id: "tutor", class: "panel tutor" }));
 
-  viewEl.append(strip, h("div", { id: "banner" }), h("div", { class: "ex-grid" }, task, work));
+  viewEl.append(strip, h("div", { id: "banner" }), h("div", { class: "ex-grid" }, side, work));
 
   const st = exState(ex);
   editor = CodeMirror(host, {
@@ -74,6 +80,8 @@ function openExercise(i) {
       "Shift-Tab": (cm) => cm.indentSelection("subtract"),
     },
   });
+  // Added after construction so it outranks the closebrackets keymap.
+  editor.addKeyMap({ "'\"'": quoteKey('"'), "'\''": quoteKey("'") });
   editor.on("change", () => {
     clearErrorLine();
     exState(ex).code = editor.getValue();
@@ -88,25 +96,100 @@ function openExercise(i) {
   window.scrollTo({ top: 0 });
 }
 
+// Stock closebrackets skips pairing after a word char, so r"..." and f'...' get one quote.
+// It also pairs after "]" or "}", so a closing quote typed after them doubles up.
+// Handle both cases here; everything else falls through to the default.
+function quoteKey(q) {
+  return (cm) => {
+    if (cm.somethingSelected()) return CodeMirror.Pass;
+    const cur = cm.getCursor();
+    const line = cm.getLine(cur.line);
+    const before = line.slice(0, cur.ch);
+    if (line.charAt(cur.ch) === q) {
+      cm.execCommand("goCharRight");
+      return;
+    }
+    // Leave triple quotes to the default handler.
+    if (before.endsWith(q + q)) return CodeMirror.Pass;
+    const tok = cm.getTokenAt(cur);
+    const closed = new RegExp("^[rRbBuUfF]{0,2}" + q + "(?:\\\\.|[^\\\\" + q + "])*" + q + "$");
+    if (tok.type && /string/.test(tok.type) && !closed.test(tok.string)) {
+      cm.replaceSelection(q, "end");
+      return;
+    }
+    if (/(?:^|[^\w])[rRbBuUfF]{1,2}$/.test(before)) {
+      cm.replaceSelection(q + q, "end");
+      cm.execCommand("goCharLeft");
+      return;
+    }
+    return CodeMirror.Pass;
+  };
+}
+
+// Course header: title and level on the left, the track and a done count on the right.
+// It is the only place that shows course-wide progress; the task card names the lesson and exercise.
+// Lesson markers and exercise dots share the dot language of the lesson pages.
+// h() builds HTML elements only, so the icons go in as markup; the strings are constant.
+const STRIP_ICONS = {
+  book: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>',
+  done: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+  locked: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+};
+
 function renderStrip() {
   const strip = document.getElementById("strip");
   if (!strip) return;
   strip.textContent = "";
+  const track = h("div", { class: "track" });
+  let group = null;
+  let prevLesson;
   S.plan.exercises.forEach((ex, i) => {
     const st = exState(ex);
-    const cls = ["step", st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : "", i === S.index ? "current" : ""].join(" ");
-    const stateLabel = st.status === "locked" ? "locked" : st.status === "passed" ? "passed" : st.status === "solution_shown" ? "completed with solution" : "open";
-    strip.append(h("button", {
-      class: cls, type: "button", disabled: st.status === "locked",
-      "aria-current": i === S.index ? "step" : null,
+    const lesson = lessonOf(S.plan, ex);
+    // Plans without lessons get a single group of dots and no markers.
+    if (!group || lesson !== prevLesson) {
+      group = h("div", { class: "track-group" });
+      track.append(group);
+      if (lesson) group.append(lessonMarker(lesson));
+    }
+    prevLesson = lesson;
+    const current = S.lesson == null && i === S.index;
+    const state = current ? "current" : st.status === "passed" ? "passed" : st.status === "solution_shown" ? "solution" : st.status === "locked" ? "locked" : "open";
+    const stateLabel = { current: "you are here", passed: "passed", solution: "completed with solution", locked: "locked", open: "open" }[state];
+    if (lesson || group.childElementCount) group.append(h("span", { class: "seg" + (isDone(st) ? " done" : ""), "aria-hidden": "true" }));
+    group.append(h("button", {
+      class: "step " + state, type: "button", disabled: st.status === "locked",
+      "aria-current": current ? "step" : null,
       "aria-label": "Exercise " + (i + 1) + ", " + ex.title + ", " + stateLabel,
-      title: ex.title + " (" + stateLabel + ")",
+      title: "Exercise " + (i + 1) + ": " + ex.title + " (" + stateLabel + ")",
       onclick: () => openExercise(i),
-      text: String(i + 1),
     }));
   });
+
   const done = countDone(S.plan, S.progress);
-  strip.append(h("span", { class: "summary tabnum", text: done + " of " + S.plan.exercises.length + " done · " + S.plan.level }));
+  const total = S.plan.exercises.length;
+  strip.append(
+    h("div", { class: "course-name" }, h("h1", { class: "course-title", text: S.plan.topic }), h("span", { class: "chip plain", text: S.plan.level })),
+    h("div", { class: "course-progress" }, track,
+      h("span", { class: "count tabnum", title: done + " of " + total + " done", "aria-label": done + " of " + total + " exercises done", text: done + "/" + total })),
+  );
+}
+
+function lessonMarker(lesson) {
+  const li = lessonIndex(S.plan, lesson.id);
+  const mine = S.plan.exercises.filter((ex) => ex.lesson_id === lesson.id).map(exState);
+  const locked = mine[0].status === "locked";
+  const here = S.lesson === li || (S.lesson == null && S.plan.exercises[S.index].lesson_id === lesson.id);
+  const state = mine.every(isDone) ? "done" : here ? "current" : locked ? "locked" : "open";
+  const btn = h("button", {
+    class: "step lesson " + state, type: "button", disabled: locked,
+    "aria-current": S.lesson === li ? "step" : null,
+    "aria-label": "Lesson " + (li + 1) + ", " + lesson.title + (locked ? ", locked" : ""),
+    title: "Lesson " + (li + 1) + ": " + lesson.title,
+    onclick: () => openLesson(li),
+  });
+  btn.innerHTML = STRIP_ICONS[state === "done" ? "done" : locked ? "locked" : "book"];
+  return btn;
 }
 
 function planComplete() {
@@ -138,7 +221,7 @@ function renderActions() {
   const row = h("div", { class: "actions" },
     h("button", { class: "btn secondary", type: "button", disabled: busy, onclick: () => doRun(false) }, "Run", h("span", { class: "kbd", text: "Ctrl+↵" })),
     h("button", { class: "btn", type: "button", disabled: busy, onclick: () => doRun(true) }, "Submit", h("span", { class: "kbd", text: "Ctrl+Shift+↵" })),
-    isDone(st) && next ? h("button", { class: "btn secondary", type: "button", onclick: () => openExercise(S.index + 1), text: "Next exercise →" }) : null,
+    isDone(st) && next ? nextButton(ex, next) : null,
     h("span", { class: "spacer" }),
     h("button", { class: "btn ghost", type: "button", onclick: () => { S.confirm = "reset"; renderActions(); }, text: "Reset code" }),
   );
@@ -154,6 +237,15 @@ function renderActions() {
       h("button", { class: "btn secondary", type: "button", onclick: () => { S.confirm = null; renderActions(); }, text: "Cancel" }),
     ));
   }
+}
+
+// Crossing into a new lesson opens that lesson first, not its first exercise.
+function nextButton(ex, next) {
+  const lesson = lessonOf(S.plan, next);
+  if (lesson && next.lesson_id !== ex.lesson_id) {
+    return h("button", { class: "btn secondary", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "Next lesson →" });
+  }
+  return h("button", { class: "btn secondary", type: "button", onclick: () => openExercise(S.index + 1), text: "Next exercise →" });
 }
 
 function clearErrorLine() {
@@ -269,7 +361,9 @@ function renderOutput() {
 
   if (res.submit && res.allPass) {
     const next = S.plan.exercises[S.index + 1];
-    el.append(h("div", { class: "notice ok", text: next ? "All " + results.length + " tests pass. Exercise " + (S.index + 2) + " is unlocked." : "All tests pass. That was the last exercise." }));
+    const nextLesson = next && next.lesson_id !== ex.lesson_id ? lessonOf(S.plan, next) : null;
+    const unlocked = nextLesson ? "Lesson " + (lessonIndex(S.plan, nextLesson.id) + 1) + " is unlocked." : "Exercise " + (S.index + 2) + " is unlocked.";
+    el.append(h("div", { class: "notice ok", text: next ? "All " + results.length + " tests pass. " + unlocked : "All tests pass. That was the last exercise." }));
   } else if (!res.submit && !res.error && !failed && results.length) {
     el.append(h("p", { class: "muted", style: "font-size: 13px", text: "Visible tests pass. Submit runs the hidden tests too." }));
   }

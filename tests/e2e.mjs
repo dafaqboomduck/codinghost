@@ -60,6 +60,8 @@ try {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/favicon|fonts\.g|status of 404/.test(m.text())) errors.push("console: " + m.text()); });
   const setCode = (code) => page.evaluate((c) => document.querySelector(".CodeMirror").CodeMirror.setValue(c), code);
+  // Strip dots have no visible text, so steps are found by their labels.
+  const exStep = (n) => page.locator(`.strip .step[aria-label^="Exercise ${n},"]`);
   const getCode = () => page.evaluate(() => document.querySelector(".CodeMirror").CodeMirror.getValue());
 
   await page.goto(base);
@@ -85,13 +87,62 @@ try {
     await page.getByText("No plans yet").waitFor();
   });
 
-  await step("generate plan; broken ex6 is repaired, all 6 kept", async () => {
+  await step("generate plan; broken ex6 is repaired, leaky ex2 rewritten, all 6 kept", async () => {
     await page.fill("#topic", "Python lists");
     await page.click("text=Generate plan");
     await page.locator(".strip .step").first().waitFor({ timeout: 60000 });
-    assert.equal(await page.locator(".strip .step").count(), 6);
-    assert.equal(await page.locator(".strip .step:disabled").count(), 5);
+    assert.equal(await page.locator(".strip .step:not(.lesson)").count(), 6);
+    assert.equal(await page.locator(".strip .step.lesson").count(), 3);
+    assert.equal(await page.locator(".strip .step:not(.lesson):disabled").count(), 5);
+    assert.equal(await page.locator(".strip .step.lesson:disabled").count(), 2);
+  });
+
+  await step("a new plan opens on lesson 1, one page per concept; the leaky example is dropped", async () => {
+    await page.locator(".lesson-view h2", { hasText: "Reading a list" }).waitFor();
+    assert.equal(await page.locator(".lesson-view .dot").count(), 3);
+    assert.equal(await page.locator(".lesson-view .page-title").innerText(), "Indexes: items[0], items[-1]");
+    assert.equal(await page.locator(".lesson-view .example").count(), 1);
+    assert.equal(await page.locator("text=Try it yourself").count(), 0, "only the last page leads to the exercises");
+    await page.click("text=Next →");
+    await page.locator(".lesson-view .page-title", { hasText: "for loops" }).waitFor();
+    await page.click("text=← Back");
+    await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
+    await page.click(".lesson-view .dot >> nth=2");
+    await page.locator(".lesson-view .page-title", { hasText: "The % operator" }).waitFor();
+    assert.equal(await page.locator(".lesson-view .example").count(), 2);
+    assert.equal(await page.locator(".lesson-view", { hasText: "first_and_last" }).count(), 0);
+    if (shots) await page.screenshot({ path: path.join(shots, "lesson.png"), fullPage: true });
+  });
+
+  await step("try it yourself opens exercise 1, which links back to the lesson", async () => {
+    await page.click("text=Try it yourself");
     assert.equal(await page.locator(".doctest").innerText(), ">>> first_and_last([4, 7, 9])\n[4, 9]\n>>> first_and_last(['a', 'b'])\n['a', 'b']");
+    assert.equal(await page.locator(".task .example").count(), 0, "lesson is not on the exercise screen");
+    assert.equal(await page.locator(".strip .count").innerText(), "0/6");
+    assert.equal(await page.locator(".task .eyebrow").innerText(), "EXERCISE 1 OF 6 · LIST INDEXING");
+    assert.equal(await page.locator("#crumb").innerText(), "", "the course header names the course, not the top bar");
+    assert.doesNotMatch(await page.locator(".task > .md").innerText(), /for example/i, "the Examples box already shows the calls");
+    await page.click("text=← Lesson 1: Reading a list");
+    await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
+    await page.click(".lesson-view .dot >> nth=-1");
+    await page.click("text=Try it yourself");
+    await page.locator(".doctest").waitFor();
+  });
+
+  await step("editor pairs quotes after a string prefix and does not double a closing quote", async () => {
+    const starter = await getCode();
+    const type = async (text) => {
+      await setCode("");
+      await page.locator(".CodeMirror").click();
+      await page.keyboard.type(text);
+      return getCode();
+    };
+    assert.equal(await type('x = r"'), 'x = r""');
+    assert.equal(await type("x = f'"), "x = f''");
+    assert.equal(await type('re.findall(r"\\d{2}[A-B]{4}", text)'), 're.findall(r"\\d{2}[A-B]{4}", text)');
+    assert.equal(await type("don't"), "don't");
+    assert.equal(await type('"it\'s"'), '"it\'s"');
+    await setCode(starter);
   });
 
   await step("run with starter code shows failing visible tests", async () => {
@@ -112,7 +163,7 @@ try {
     await setCode("def first_and_last(items):\n    return [items[0], items[len(items) - 1]]\n");
     await page.click("button:has-text('Submit')");
     await page.locator(".chip", { hasText: "Passed" }).waitFor();
-    assert.equal(await page.locator(".strip .step:disabled").count(), 4);
+    assert.equal(await page.locator(".strip .step:not(.lesson):disabled").count(), 4);
     assert.equal(await page.locator(".hint.review").count(), 0, "review waits for a click");
     await page.click("button:has-text('Review my code')");
     await page.locator(".hint.review:not(.streaming)", { hasText: "One idea" }).waitFor({ timeout: 10000 });
@@ -122,6 +173,7 @@ try {
 
   await step("syntax error shows traceback and marks the line", async () => {
     await page.click("text=Next exercise");
+    assert.doesNotMatch(await page.locator(".task > .md").innerText(), /n % 2/, "leaky task was rewritten");
     await setCode("def count_evens(numbers)\n    return 0\n");
     await page.click("button:has-text('Run')");
     await page.locator(".term.err", { hasText: "SyntaxError" }).waitFor();
@@ -148,30 +200,32 @@ try {
     assert.ok(Date.now() - t0 < 1000, "run took " + (Date.now() - t0) + " ms");
   });
 
-  await step("help streams a hint and counts it", async () => {
+  await step("help shows the plan's hint first, then streams one from Claude", async () => {
     await page.click("button:has-text('Help me')");
-    await page.locator(".hint:not(.streaming)").waitFor({ timeout: 10000 });
-    assert.match(await page.locator(".hint .body").innerText(), /Which variable/);
+    await page.locator(".hint .body", { hasText: "remainder" }).waitFor();
     await page.getByText("Hints used: 1").waitFor();
+    await page.click("button:has-text('Next hint (2 of 3)')");
+    await page.locator(".hint:not(.streaming)", { hasText: "Which variable" }).waitFor({ timeout: 10000 });
+    await page.getByText("Hints used: 2").waitFor();
   });
 
   await step("reload resumes the plan, exercise and code", async () => {
     await page.waitForTimeout(2500); // let the debounced save land
     await page.reload();
     await page.locator("button", { hasText: "Continue" }).click();
-    await page.locator(".step.current", { hasText: "2" }).waitFor();
+    await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
     assert.match(await getCode(), /sum\(1 for n in numbers/);
   });
 
   await step("code review is saved with progress", async () => {
-    await page.locator(".step", { hasText: "1" }).click();
+    await exStep(1).click();
     await page.locator(".hint.review", { hasText: "One idea" }).waitFor();
     await setCode("def first_and_last(items):\n    first = items[0]\n    return [first, items[-1]]\n");
     await page.click("button:has-text('Submit')");
     await page.click("button:has-text('Review my new code')");
     await page.locator(".hint.review.streaming").waitFor({ timeout: 5000 });
     await page.locator(".hint.review:not(.streaming)").waitFor({ timeout: 10000 });
-    await page.locator(".step", { hasText: "2" }).click();
+    await exStep(2).click();
   });
 
   await step("debug log is saved to debug/<uid> and keeps the previous session", async () => {
@@ -186,7 +240,7 @@ try {
 
   await step("show solution after 3 failed submits, then the plan completes", async () => {
     for (let n = 2; n <= 5; n++) {
-      await page.locator(".step", { hasText: String(n) }).click();
+      await exStep(n).click();
       // 3 failing submits make "Show solution" available
       await setCode("def nope():\n    pass\n");
       for (let k = 0; k < 3; k++) {
@@ -196,8 +250,14 @@ try {
       await page.click("text=Show solution…");
       await page.click(".confirm >> text=Show solution");
       await page.locator(".eyebrow", { hasText: "Reference solution" }).waitFor();
+      // ex2 ends lesson 1, so moving on opens lesson 2 first
+      if (n === 2) {
+        await page.click("text=Next lesson →");
+        await page.locator(".lesson-view h2", { hasText: "Slices" }).waitFor();
+        await page.locator('.strip .step.lesson[aria-current="step"][aria-label^="Lesson 2,"]').waitFor();
+      }
     }
-    await page.locator(".step", { hasText: "6" }).click();
+    await exStep(6).click();
     await setCode("def running_total(numbers):\n    out, total = [], 0\n    for n in numbers:\n        total += n\n        out.append(total)\n    return out\n");
     await page.click("button:has-text('Submit')");
     await page.locator(".chip", { hasText: "Passed" }).waitFor();
@@ -205,6 +265,56 @@ try {
     await page.click("text=See summary");
     await page.getByText("solved on your own").waitFor();
     if (shots) await page.screenshot({ path: path.join(shots, "complete.png"), fullPage: true });
+  });
+
+  await step("deleting a plan asks first, then removes it and its progress", async () => {
+    await page.click("text=Back to plans");
+    await page.locator(".plan-item").first().waitFor();
+    assert.equal(await page.locator(".plan-item .chip", { hasText: "legacy" }).count(), 0, "new plan marked legacy");
+    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    await page.click(".confirm >> text=Cancel");
+    assert.equal(await page.locator(".plan-item").count(), 1);
+    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    if (shots) await page.screenshot({ path: path.join(shots, "home-delete.png"), fullPage: true });
+    await page.click(".confirm >> button.danger");
+    await page.getByText("No plans yet").waitFor();
+    const keys = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("codinghost-dev-db"))));
+    assert.ok(!keys.some((k) => /\/(plans|progress)\//.test(k)), "left behind: " + keys.join(", "));
+    await page.reload();
+    await page.getByText("No plans yet").waitFor();
+  });
+
+  await step("plans made before lessons are marked legacy", async () => {
+    await page.evaluate(() => {
+      const all = JSON.parse(localStorage.getItem("codinghost-dev-db"));
+      const ex = { id: "ex1", title: "Old", concept: "Old", prompt_md: "Old task", function_name: "f", starter_code: "def f():\n    pass\n", reference_solution: "def f():\n    return 1\n", tests: [] };
+      all["data/users/dev-user/profile/plans/pold"] = { id: "pold", topic: "Old plan", level: "beginner", summary: "", exercises: [ex], created_at: "2026-10-01T00:00:00Z" };
+      localStorage.setItem("codinghost-dev-db", JSON.stringify(all));
+    });
+    await page.reload();
+    await page.locator(".plan-item", { hasText: "Old plan" }).locator(".chip", { hasText: "legacy" }).waitFor();
+    await page.click(".plan-item >> text=Start");
+    await page.locator(".task h2", { hasText: "Old" }).waitFor();
+    assert.equal(await page.locator(".strip .step.lesson").count(), 0);
+    assert.equal(await page.locator(".back-link").count(), 0);
+  });
+
+  await step("lessons saved before pages existed read as a single page", async () => {
+    await page.evaluate(() => {
+      const all = JSON.parse(localStorage.getItem("codinghost-dev-db"));
+      const ex = { id: "ex1", lesson_id: "l1", title: "Flat", concept: "Flat", prompt_md: "Flat task", hint_md: "Hint", function_name: "f", starter_code: "def f():\n    pass\n", reference_solution: "def f():\n    return 1\n", tests: [] };
+      const lesson = { id: "l1", title: "Flat lesson", intro_md: "One intro for everything.", examples: [{ code: "print(1)  # 1", note: "a note" }, { code: "print(2)  # 2", note: "" }] };
+      all["data/users/dev-user/profile/plans/pflat"] = { id: "pflat", topic: "Flat plan", level: "beginner", summary: "", lessons: [lesson], exercises: [ex], created_at: "2026-10-02T00:00:00Z" };
+      localStorage.setItem("codinghost-dev-db", JSON.stringify(all));
+    });
+    await page.click("#brand");
+    await page.click(".plan-item:has-text('Flat plan') >> text=Start");
+    await page.locator(".lesson-view h2", { hasText: "Flat lesson" }).waitFor();
+    assert.equal(await page.locator(".lesson-view .dot").count(), 0);
+    assert.equal(await page.locator(".lesson-view .example").count(), 2);
+    await page.getByText("One intro for everything.").waitFor();
+    await page.click("text=Try it yourself");
+    await page.locator(".task h2", { hasText: "Flat" }).waitFor();
   });
 
   await step("phone width has no horizontal scroll", async () => {
@@ -218,6 +328,11 @@ try {
     await p.fill("#topic", "Python lists");
     await p.click("text=Generate plan");
     await p.locator(".strip .step").first().waitFor({ timeout: 60000 });
+    assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "lesson overflows");
+    if (shots) await p.screenshot({ path: path.join(shots, "phone-lesson-dark.png"), fullPage: true });
+    await p.click(".lesson-view .dot >> nth=-1");
+    await p.click("text=Try it yourself");
+    await p.locator(".doctest").waitFor();
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "exercise overflows");
     if (shots) await p.screenshot({ path: path.join(shots, "phone-exercise-dark.png"), fullPage: true });
     await phone.close();

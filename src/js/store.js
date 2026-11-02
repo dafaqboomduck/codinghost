@@ -55,6 +55,11 @@ const store = (() => {
     savePlan(plan) { return write(base + "/plans/" + plan.id, plan); },
     async getProgress(id) { return plain(await db.doc(base + "/progress/" + id).get()); },
     saveProgress(id, progress) { return write(base + "/progress/" + id, progress); },
+    // Progress goes first: a plan whose progress delete failed would show up again as unstarted.
+    async deletePlan(id) {
+      await db.doc(base + "/progress/" + id).delete();
+      await db.doc(base + "/plans/" + id).delete();
+    },
   };
 })();
 
@@ -64,5 +69,7 @@ function dbErrorMessage(e) {
   if (code === "quota_exceeded") return "Storage is full. Your latest change was not saved.";
   if (code === "not_granted" || code === "revoked") return "This page lost access to your saved data. Reload to allow it again.";
   if (code === "unavailable" || code === "resource_exhausted") return "Saving failed for a moment. Your next change will try again.";
+  // Also what a Viewer or Commenter gets for any write, since view-level access never writes.
+  if (code === "invalid_argument") return "Saving was refused. If your access to this page is Viewer or Commenter, ask the owner for Contributor access, then reload.";
   return "Saving failed: " + ((e && e.message) || String(e));
 }

@@ -18,10 +18,11 @@ async function startGeneration(topic, level, count) {
     if (S.gen.controller !== controller) return;
     if (raw && raw.unsupported_package) throw unsupportedPackageError(raw);
     const n = raw && Array.isArray(raw.exercises) ? raw.exercises.length : 0;
-    S.gen.steps[0] = { label: "Claude wrote " + n + " exercises", sub: (raw && raw.summary) || "", state: "done" };
+    const nl = raw && Array.isArray(raw.lessons) ? raw.lessons.length : 0;
+    S.gen.steps[0] = { label: "Claude wrote " + (nl ? nl + " lessons and " : "") + n + " exercises", sub: (raw && raw.summary) || "", state: "done" };
     renderGenerating();
     await runner.whenReady().catch(() => { throw { code: "python", message: "Python could not load, so exercises cannot be checked. " + runner.status.detail }; });
-    const exercises = await validatePlan(raw, level, (i, state, label, sub) => {
+    const { exercises, lessons } = await validatePlan(raw, level, (i, state, label, sub) => {
       S.gen.steps[i + 1] = { label: label, sub, state };
       renderGenerating();
     }, controller.signal);
@@ -34,6 +35,7 @@ async function startGeneration(topic, level, count) {
       topic: String(raw.topic || topic).slice(0, 200),
       level,
       summary: String(raw.summary || ""),
+      lessons,
       exercises,
       created_at: new Date().toISOString(),
     };

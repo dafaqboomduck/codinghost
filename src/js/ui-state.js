@@ -6,6 +6,7 @@ const S = {
   plan: null,
   progress: null,
   index: 0,
+  lesson: null,        // index of the lesson on screen, or null while an exercise is
   lastRun: {},         // ex id -> harness result (session only)
   hints: {},           // ex id -> [{level, question, text, streaming, error}]
   confirm: null,       // "reset" | "solution" | null

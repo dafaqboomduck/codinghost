@@ -17,6 +17,17 @@ async function boot() {
     renderHome();
     return;
   }
+  // Viewers and Commenters cannot write, not even their own data/users subtree, and the server
+  // rejects their writes as invalid_argument. Stop here instead of after a whole Claude generation.
+  // null means the platform did not say, so let a refused write decide.
+  let canWrite = null;
+  try { canWrite = caps.user && caps.user.can ? await caps.user.can("data.write") : null; } catch (e) { canWrite = null; }
+  dbg.log("access", { can_write: canWrite });
+  if (canWrite === false) {
+    S.blocked = { title: "You can only view this page", body: "Your access to this page is Viewer or Commenter, so CodingHost cannot save plans or progress for you. Ask the owner for Contributor access (or use Ask to edit), then reload." };
+    renderHome();
+    return;
+  }
   S.caps = caps;
   S.uid = uid;
   store.init(caps.db, uid);

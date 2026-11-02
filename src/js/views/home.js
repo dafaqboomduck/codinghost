@@ -6,6 +6,10 @@ async function goHome() {
   S.gen = null;
   S.confirm = null;
   S.lesson = null;
+  // Keyed by exercise id, which every plan reuses (ex1, ex2...), so they belong to one plan visit.
+  S.lastRun = {};
+  S.hints = {};
+  S.showSolution = {};
   editor = null;
   setCrumb("");
   renderRuntimeChip();

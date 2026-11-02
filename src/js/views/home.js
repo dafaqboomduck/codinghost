@@ -8,6 +8,7 @@ async function goHome() {
   S.lesson = null;
   editor = null;
   setCrumb("");
+  renderRuntimeChip();
   dbg.log("view", { view: "home" });
   renderHome();
   if (S.blocked || !S.caps) return;
@@ -23,7 +24,7 @@ async function goHome() {
 function renderHome() {
   viewEl.textContent = "";
   const head = h("div", { class: "home-head" },
-    h("p", { class: "eyebrow", text: "Python practice, written by Claude" }),
+    h("p", { class: "eyebrow", text: "Coding practice, written by Claude" }),
     h("h1", { text: "Pick a topic. Solve it one function at a time." }),
     h("p", { class: "muted", text: "Claude writes a short plan of exercises for your level. Each one comes with tests that run in your browser, and a tutor who gives hints instead of answers." }),
   );
@@ -41,32 +42,50 @@ function renderHome() {
   viewEl.append(grid);
 }
 
+// What the topic placeholder and the scope note say for each language.
+const FORM_TEXT = {
+  python: { placeholder: "e.g. Python lists and loops", note: "Plans use only Python's core packages (the standard library). Topics that need numpy, pandas, requests and similar packages are not supported." },
+  javascript: { placeholder: "e.g. JavaScript arrays and loops", note: "Plans use only core JavaScript. Topics that need the DOM, Node.js or libraries such as React, Express or lodash are not supported." },
+};
+
 function renderNewPlanForm() {
   const canGenerate = ai.available;
+  const language = h("div", { class: "seg", role: "radiogroup", "aria-label": "Language" },
+    Object.values(LANGS).map((L, i) =>
+      h("label", {}, h("input", { type: "radio", name: "language", id: "language-" + L.id, value: L.id, checked: i === 0 }), h("span", { text: L.label })),
+    ),
+  );
   const level = h("div", { class: "seg", role: "radiogroup", "aria-label": "Level" },
     ["beginner", "intermediate", "advanced"].map((lv, i) =>
       h("label", {}, h("input", { type: "radio", name: "level", id: "level-" + lv, value: lv, checked: i === 0 }), h("span", { text: lv[0].toUpperCase() + lv.slice(1) })),
     ),
   );
   const count = h("select", { id: "count" }, [5, 6, 7, 8].map((n) => h("option", { value: String(n), selected: n === 6, text: n + " exercises" })));
-  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: "e.g. Python lists and loops", autocomplete: "off", required: true });
+  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: FORM_TEXT.python.placeholder, autocomplete: "off", required: true });
+  const note = h("p", { class: "muted", style: "font-size: 13px", text: FORM_TEXT.python.note });
   const submit = h("button", { class: "btn", type: "submit", disabled: !canGenerate || !S.caps, text: "Generate plan" });
   const form = h("form", { class: "panel stack", id: "new-plan" },
     h("h2", { text: "New plan" }),
+    h("div", { class: "field" }, h("span", { text: "Language" }), language),
     h("label", { class: "field", for: "topic" }, "Topic", topic),
     h("div", { class: "field" }, h("span", { text: "Level" }), level),
     h("label", { class: "field", for: "count" }, "Length", count),
     h("div", { class: "row" }, submit),
-    h("p", { class: "muted", style: "font-size: 13px", text: "Plans use only Python's core packages (the standard library). Topics that need numpy, pandas, requests and similar packages are not supported." }),
+    note,
     h("p", { class: "muted", style: "font-size: 13px" }, "Before you see an exercise, its reference solution is run against its tests. Broken exercises are fixed or dropped."),
     !canGenerate && S.caps ? h("div", { class: "notice warn", text: "Claude access is off for this page, so new plans cannot be written. You can still continue your saved plans." }) : null,
   );
+  language.addEventListener("change", () => {
+    const t = FORM_TEXT[form.querySelector('input[name="language"]:checked').value];
+    topic.placeholder = t.placeholder;
+    note.textContent = t.note;
+  });
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const t = topic.value.trim();
     if (!t) { topic.focus(); return; }
     const lv = form.querySelector('input[name="level"]:checked').value;
-    startGeneration(t, lv, Number(count.value));
+    startGeneration(t, lv, Number(count.value), form.querySelector('input[name="language"]:checked').value);
   });
   return form;
 }
@@ -94,6 +113,7 @@ function renderPlanList() {
       h("div", { class: "stack", style: "gap: 6px; min-width: 0" },
         h("span", { class: "title", text: plan.topic }),
         h("div", { class: "meta" },
+          h("span", { class: "chip plain", text: langOf(plan).label }),
           h("span", { class: "chip plain", text: plan.level }),
           isLegacy(plan) ? h("span", { class: "chip plain warn", title: "Made before lessons. Generate a new plan to get them.", text: "legacy" }) : null,
           h("span", { class: "meter", "aria-hidden": "true" }, h("i", { style: "width: " + pct + "%" })),

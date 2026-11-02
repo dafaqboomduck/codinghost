@@ -317,6 +317,77 @@ try {
     await page.locator(".task h2", { hasText: "Flat" }).waitFor();
   });
 
+  await step("JavaScript: a library topic is refused without a plan", async () => {
+    await page.click("#brand");
+    await page.click("label:has(#language-javascript)");
+    assert.match(await page.getAttribute("#topic", "placeholder"), /JavaScript/);
+    await page.fill("#topic", "React hooks");
+    await page.click("text=Generate plan");
+    await page.locator(".notice.bad", { hasText: "React is not available here" }).waitFor({ timeout: 10000 });
+    await page.click("text=Back to plans");
+  });
+
+  await step("JavaScript: generate plan; broken ex3 is repaired, all 4 kept", async () => {
+    await page.click("label:has(#language-javascript)");
+    await page.fill("#topic", "JavaScript arrays");
+    await page.click("text=Generate plan");
+    await page.locator(".lesson-view h2", { hasText: "Reading an array" }).waitFor({ timeout: 30000 });
+    assert.equal(await page.locator(".strip .step:not(.lesson)").count(), 4);
+    assert.equal(await page.locator(".strip .step.lesson").count(), 2);
+    await page.locator("#py-chip", { hasText: "JavaScript ready" }).waitFor();
+    await page.click(".lesson-view .dot >> nth=-1");
+    await page.click("text=Try it yourself");
+    assert.equal(await page.locator(".doctest").innerText(), "> lastItem([4, 7, 9])\n9\n> lastItem(['a', 'b'])\n'b'");
+    assert.equal(await page.locator(".editor-head span").first().innerText(), "solution.js");
+  });
+
+  await step("JavaScript: starter code fails, a correct submit passes and logs are shown", async () => {
+    await page.click("button:has-text('Run')");
+    await page.locator(".out-summary", { hasText: "2 failed" }).waitFor();
+    assert.match(await page.locator(".test.fail .detail").first().innerText(), /got undefined/);
+    await setCode("function lastItem(items) {\n  console.log('items:', items);\n  return items[items.length - 1];\n}\n");
+    await page.click("button:has-text('Submit')");
+    await page.locator(".chip", { hasText: "Passed" }).waitFor();
+    assert.match(await page.locator(".out .term").first().innerText(), /^items: \[4, 7, 9\]/);
+  });
+
+  await step("JavaScript: syntax and runtime errors name the line", async () => {
+    await page.click("text=Next exercise");
+    await setCode("function countLong(words, n) {\n  let c = 0\n  for (const w of words {\n  }\n}\n");
+    await page.click("button:has-text('Run')");
+    await page.locator(".term.err", { hasText: "SyntaxError" }).waitFor();
+    assert.match(await page.locator(".term.err").innerText(), /line 3 of solution\.js/);
+    assert.equal(await page.locator(".cm-errline").count(), 1);
+    await setCode("function countLong(words, n) {\n  return words.nope.length;\n}\n");
+    await page.click("button:has-text('Run')");
+    await page.locator(".test.error .detail", { hasText: "TypeError" }).first().waitFor();
+    assert.match(await page.locator(".test.error .detail").first().innerText(), /line 2 of solution\.js/);
+  });
+
+  await step("JavaScript: infinite loop times out after 5 s and the next run works", async () => {
+    await setCode("function countLong(words, n) {\n  while (true) {}\n}\n");
+    const t0 = Date.now();
+    await page.click("button:has-text('Run')");
+    await page.locator(".chip", { hasText: "Timed out" }).waitFor({ timeout: 15000 });
+    const took = Date.now() - t0;
+    assert.ok(took >= 4500 && took < 9000, "timeout took " + took + " ms");
+    await setCode("function countLong(words, n) {\n  return words.filter((w) => w.length > n).length;\n}\n");
+    await page.click("button:has-text('Run')");
+    await page.locator(".chip", { hasText: "Looks good" }).waitFor();
+  });
+
+  await step("JavaScript: the plan list names the language, and reload resumes", async () => {
+    await page.waitForTimeout(2500); // let the debounced save land
+    await page.reload();
+    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator(".chip", { hasText: "JavaScript" }).waitFor();
+    await page.locator(".plan-item", { hasText: "Flat plan" }).locator(".chip", { hasText: "Python" }).waitFor();
+    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator("button", { hasText: "Continue" }).click();
+    await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
+    assert.match(await getCode(), /words\.filter/);
+    await page.click("#brand");
+    await page.locator("#py-chip", { hasText: "Python ready" }).waitFor({ timeout: 60000 });
+  });
+
   await step("phone width has no horizontal scroll", async () => {
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
     const p = await phone.newPage();

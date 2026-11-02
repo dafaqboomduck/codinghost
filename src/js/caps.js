@@ -42,8 +42,12 @@ function devCaps() {
       };
     },
   };
-  let canned = null;
-  const getCanned = async () => canned || (canned = await (await fetch("dev/sample-plan.json")).json());
+  const canned = {};
+  // The plan and repair prompts both name the course language.
+  const getCanned = async (input) => {
+    const file = /JavaScript practice course/.test(String(input)) ? "dev/sample-plan-js.json" : "dev/sample-plan.json";
+    return canned[file] || (canned[file] = await (await fetch(file)).json());
+  };
   const sample = async (input, opts = {}) => {
     const text = String(input).includes("already passes every test")
       ? "Clear and correct. **One idea:** give each value a name that says what it holds, so the `return` line reads like the task."
@@ -57,7 +61,7 @@ function devCaps() {
     return { text: acc, truncated: false, modelTierApplied: "default" };
   };
   sample.json = async (input, opts = {}) => {
-    const plan = await getCanned();
+    const plan = await getCanned(input);
     await new Promise((r) => setTimeout(r, 400));
     if (String(input).includes("failed an automatic check")) {
       const id = (String(input).match(/"id":\s*"(ex\d+)"/) || [])[1];
@@ -65,6 +69,7 @@ function devCaps() {
       throw { code: "invalid_json", message: "Dev shim has no repair for " + id };
     }
     if (/^Topic: .*numpy/im.test(String(input))) return { unsupported_package: "numpy", suggestion: "lists of numbers with the statistics module" };
+    if (/^Topic: .*react/im.test(String(input))) return { unsupported_package: "React", suggestion: "building HTML strings from arrays of objects" };
     if (opts.onText) opts.onText({ text: JSON.stringify(plan), delta: "" });
     return JSON.parse(JSON.stringify(plan));
   };

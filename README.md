@@ -6,6 +6,9 @@ Python practice plans written by Claude, solved in an in-browser editor with rea
 - App source: `src/` (`html/`, `css/`, `js/`, `py/`); `build.py` inlines it into `app/codinghost.html`, one file with capabilities `sample`, `db`, `user`
 - Phase 0 smoke test: `smoke/pyodide-smoke.html`
 
+## Supported languages
+The artifact currently supports creating plans for Python core libraries. I am planning to add support for JavaScript and other languages in the future. The app uses Pyodide to run Python code in the browser.
+
 ## Setup
 
 ```sh

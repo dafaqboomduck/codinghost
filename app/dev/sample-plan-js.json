@@ -1,0 +1,132 @@
+{
+  "topic": "JavaScript arrays",
+  "level": "beginner",
+  "summary": "Practice reading JavaScript arrays and building new ones with loops, map and filter.",
+  "lessons": [
+    {
+      "id": "l1",
+      "title": "Reading an array and looping over it",
+      "pages": [
+        {
+          "title": "Indexes and .length",
+          "body_md": "An array keeps items in order. Read one item by its **index**, counting from 0, and get the item count from `.length`.",
+          "examples": [
+            { "code": "const colors = ['red', 'green', 'blue'];\nconsole.log(colors[0]);      // red\nconsole.log(colors.length);  // 3", "note": "Indexes start at 0, so the last index is one less than the length." }
+          ]
+        },
+        {
+          "title": "for...of loops",
+          "body_md": "A `for...of` loop runs its body once for every item in the array, in order.",
+          "examples": [
+            { "code": "let total = 0;\nfor (const price of [3, 4, 5]) {\n  total += price;\n}\nconsole.log(total);  // 12", "note": "A variable outside the loop collects the result." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l2",
+      "title": "Building new arrays",
+      "pages": [
+        {
+          "title": ".map()",
+          "body_md": "`.map(fn)` calls `fn` on every item and returns a new array of the results. The original array is left as it was.",
+          "examples": [
+            { "code": "const names = ['ada', 'linus'];\nconsole.log(names.map((n) => n.toUpperCase()));  // ['ADA', 'LINUS']", "note": "The arrow function says what each item becomes." }
+          ]
+        },
+        {
+          "title": ".filter()",
+          "body_md": "`.filter(fn)` keeps the items for which `fn` returns true, in a new array.",
+          "examples": [
+            { "code": "const ages = [12, 30, 17, 45];\nconsole.log(ages.filter((a) => a >= 18));  // [30, 45]", "note": "Items for which the test is false are left out." }
+          ]
+        }
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "lesson_id": "l1",
+      "title": "Last item",
+      "concept": "array indexing",
+      "prompt_md": "Write `lastItem(items)`. It takes a non-empty array and returns its last item.",
+      "hint_md": "The index of the last item depends on how many items there are.",
+      "function_name": "lastItem",
+      "starter_code": "function lastItem(items) {\n  // Return the last item of items.\n}\n",
+      "reference_solution": "function lastItem(items) {\n  return items[items.length - 1];\n}\n",
+      "tests": [
+        { "args_js": "[[4, 7, 9]]", "expected_js": "9", "hidden": false },
+        { "args_js": "[['a', 'b']]", "expected_js": "'b'", "hidden": false },
+        { "args_js": "[[42]]", "expected_js": "42", "hidden": true }
+      ]
+    },
+    {
+      "id": "ex2",
+      "lesson_id": "l1",
+      "title": "Count long words",
+      "concept": "for...of loops",
+      "prompt_md": "Write `countLong(words, n)`. It returns how many strings in `words` have more than `n` characters.",
+      "hint_md": "Keep a counter outside a loop over the words and add one for each word that is long enough.",
+      "function_name": "countLong",
+      "starter_code": "function countLong(words, n) {\n  // Return the number of words longer than n.\n}\n",
+      "reference_solution": "function countLong(words, n) {\n  let count = 0;\n  for (const w of words) {\n    if (w.length > n) count += 1;\n  }\n  return count;\n}\n",
+      "tests": [
+        { "args_js": "[['hi', 'hello', 'hey'], 2]", "expected_js": "2", "hidden": false },
+        { "args_js": "[[], 3]", "expected_js": "0", "hidden": false },
+        { "args_js": "[['abc', 'abcd'], 3]", "expected_js": "1", "hidden": true }
+      ]
+    },
+    {
+      "id": "ex3",
+      "lesson_id": "l2",
+      "title": "Double everything",
+      "concept": ".map()",
+      "prompt_md": "Write `doubleAll(nums)`. It returns a new array with every number in `nums` multiplied by 2, in the same order.",
+      "hint_md": "One array method turns each item into a new value and gives back the new array.",
+      "function_name": "doubleAll",
+      "starter_code": "function doubleAll(nums) {\n  // Return a new array with each number doubled.\n}\n",
+      "reference_solution": "function doubleAll(nums) {\n  return nums.map((x) => x * 2);\n}\n",
+      "tests": [
+        { "args_js": "[[1, 2, 3]]", "expected_js": "[2, 4, 5]", "hidden": false },
+        { "args_js": "[[]]", "expected_js": "[]", "hidden": false },
+        { "args_js": "[[-1, 0]]", "expected_js": "[-2, 0]", "hidden": true }
+      ]
+    },
+    {
+      "id": "ex4",
+      "lesson_id": "l2",
+      "title": "Squares of the even numbers",
+      "concept": ".filter() then .map()",
+      "prompt_md": "Write `evenSquares(nums)`. It returns the squares of the even numbers in `nums`, in their original order. Odd numbers are left out.",
+      "hint_md": "First keep only the numbers you want, then change each one.",
+      "function_name": "evenSquares",
+      "starter_code": "function evenSquares(nums) {\n  // Return the squares of the even numbers.\n}\n",
+      "reference_solution": "function evenSquares(nums) {\n  return nums.filter((x) => x % 2 === 0).map((x) => x * x);\n}\n",
+      "tests": [
+        { "args_js": "[[1, 2, 3, 4]]", "expected_js": "[4, 16]", "hidden": false },
+        { "args_js": "[[5, 7]]", "expected_js": "[]", "hidden": false },
+        { "args_js": "[[0, -2]]", "expected_js": "[0, 4]", "hidden": true }
+      ]
+    }
+  ],
+  "_dev_note": "ex3 has a deliberate test bug (expected [2, 4, 5]) so the repair path runs; _dev_repairs holds the fixed version.",
+  "_dev_repairs": {
+    "ex3": {
+      "id": "ex3",
+      "lesson_id": "l2",
+      "title": "Double everything",
+      "concept": ".map()",
+      "prompt_md": "Write `doubleAll(nums)`. It returns a new array with every number in `nums` multiplied by 2, in the same order.",
+      "hint_md": "One array method turns each item into a new value and gives back the new array.",
+      "function_name": "doubleAll",
+      "starter_code": "function doubleAll(nums) {\n  // Return a new array with each number doubled.\n}\n",
+      "reference_solution": "function doubleAll(nums) {\n  return nums.map((x) => x * 2);\n}\n",
+      "tests": [
+        { "args_js": "[[1, 2, 3]]", "expected_js": "[2, 4, 6]", "hidden": false },
+        { "args_js": "[[]]", "expected_js": "[]", "hidden": false },
+        { "args_js": "[[-1, 0]]", "expected_js": "[-2, 0]", "hidden": true }
+      ]
+    }
+  }
+}

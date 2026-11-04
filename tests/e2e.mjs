@@ -73,8 +73,9 @@ try {
     if (shots) await page.screenshot({ path: path.join(shots, "home.png"), fullPage: true });
   });
 
-  await step("python loads in a worker", async () => {
-    await page.locator("#py-chip", { hasText: "Python ready" }).waitFor({ timeout: 60000 });
+  await step("python loads in a worker; the runtime chip stays off the home screen", async () => {
+    await page.locator("#py-chip", { hasText: "Python ready" }).waitFor({ state: "attached", timeout: 60000 });
+    assert.equal(await page.isVisible("#py-chip"), false);
     assert.match(await page.getAttribute("#py-chip", "title"), /Web Worker/);
   });
 
@@ -385,7 +386,8 @@ try {
     await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
     assert.match(await getCode(), /words\.filter/);
     await page.click("#brand");
-    await page.locator("#py-chip", { hasText: "Python ready" }).waitFor({ timeout: 60000 });
+    await page.getByText("Your plans").waitFor();
+    assert.equal(await page.isVisible("#py-chip"), false);
   });
 
   await step("phone width has no horizontal scroll", async () => {
@@ -407,6 +409,26 @@ try {
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "exercise overflows");
     if (shots) await p.screenshot({ path: path.join(shots, "phone-exercise-dark.png"), fullPage: true });
     await phone.close();
+  });
+
+  await step("when Python cannot load, Python plans cannot be generated but JavaScript ones can", async () => {
+    const down = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await down.route("**/pyodide/**", (r) => r.abort());
+    const p = await down.newPage();
+    p.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+    await p.goto(base);
+    await p.locator("#language-python[disabled]").waitFor({ state: "attached", timeout: 30000 });
+    await p.locator("#lang-down", { hasText: "Python could not load" }).waitFor();
+    assert.equal(await p.isEnabled("text=Generate plan"), false);
+    await p.click("label:has(#language-javascript)");
+    assert.equal(await p.isVisible("#lang-down"), false);
+    assert.equal(await p.isEnabled("text=Generate plan"), true);
+    // A fresh form after the failure starts on a language that works.
+    await p.click("#brand");
+    await p.getByText("Your plans").waitFor();
+    assert.equal(await p.isChecked("#language-javascript"), true);
+    assert.equal(await p.isVisible("#py-chip"), false);
+    await down.close();
   });
 
   await step("without claude.ai and without ?dev the page explains itself", async () => {

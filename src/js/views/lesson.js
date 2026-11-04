@@ -16,6 +16,7 @@ function openLesson(li, page = 0) {
   if (S.progress.current_lesson !== lesson.id) { S.progress.current_lesson = lesson.id; saveProgressSoon(); }
   dbg.log("view", { view: "lesson", plan: S.plan.id, lesson: lesson.id, page: pi });
   setCrumb("");
+  renderRuntimeChip(true);
   viewEl.textContent = "";
 
   const count = S.plan.exercises.filter((ex) => ex.lesson_id === lesson.id).length;

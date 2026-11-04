@@ -1,7 +1,6 @@
 function openPlan(plan, progress) {
   S.plan = plan;
   S.progress = progress || newProgress(plan);
-  renderRuntimeChip();
   const idx = Math.min(S.progress.current_index || 0, plan.exercises.length - 1);
   store.saveProfile({ last_plan_id: plan.id, updated_at: new Date().toISOString() }).catch(() => {});
   const li = lessonIndex(plan, S.progress.current_lesson);
@@ -25,6 +24,7 @@ function openExercise(i) {
   const L = langOf(S.plan);
   dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
   setCrumb("");
+  renderRuntimeChip(true);
   viewEl.textContent = "";
 
   const strip = h("nav", { class: "strip", id: "strip", "aria-label": "Exercises" });

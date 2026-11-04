@@ -7,6 +7,7 @@ function renderComplete() {
   const withSolution = states.filter((s) => s.status === "solution_shown").length;
   const hints = states.reduce((n, s) => n + (s.hints_used || 0), 0);
   setCrumb(plan.topic + " · complete");
+  renderRuntimeChip(false);
   viewEl.textContent = "";
   viewEl.append(h("div", { class: "complete" },
     h("div", { class: "stack", style: "gap: 6px" },

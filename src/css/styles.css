@@ -91,6 +91,9 @@ body::before {
 }
 .brand span { color: var(--accent); }
 .crumb { color: var(--muted); font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+/* Class rules like .chip set display, which would otherwise override the hidden attribute. */
+[hidden] { display: none !important; }
+
 .chip {
   display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500;
   padding: 3px 10px; border-radius: 999px; background: var(--sunken); color: var(--muted); white-space: nowrap;

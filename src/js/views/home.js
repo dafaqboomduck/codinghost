@@ -12,7 +12,7 @@ async function goHome() {
   S.showSolution = {};
   editor = null;
   setCrumb("");
-  renderRuntimeChip();
+  renderRuntimeChip(false);
   dbg.log("view", { view: "home" });
   renderHome();
   if (S.blocked || !S.caps) return;
@@ -52,11 +52,14 @@ const FORM_TEXT = {
   javascript: { placeholder: "e.g. JavaScript arrays and loops", note: "Plans use only core JavaScript. Topics that need the DOM, Node.js or libraries such as React, Express or lodash are not supported." },
 };
 
+const langDown = (L) => L.runner.status.state === "failed";
+
 function renderNewPlanForm() {
   const canGenerate = ai.available;
+  const pick = (Object.values(LANGS).find((L) => !langDown(L)) || LANGS.python).id;
   const language = h("div", { class: "seg", role: "radiogroup", "aria-label": "Language" },
-    Object.values(LANGS).map((L, i) =>
-      h("label", {}, h("input", { type: "radio", name: "language", id: "language-" + L.id, value: L.id, checked: i === 0 }), h("span", { text: L.label })),
+    Object.values(LANGS).map((L) =>
+      h("label", {}, h("input", { type: "radio", name: "language", id: "language-" + L.id, value: L.id, checked: L.id === pick, disabled: langDown(L) }), h("span", { text: L.label })),
     ),
   );
   const level = h("div", { class: "seg", role: "radiogroup", "aria-label": "Level" },
@@ -65,9 +68,9 @@ function renderNewPlanForm() {
     ),
   );
   const count = h("select", { id: "count" }, [5, 6, 7, 8].map((n) => h("option", { value: String(n), selected: n === 6, text: n + " exercises" })));
-  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: FORM_TEXT.python.placeholder, autocomplete: "off", required: true });
-  const note = h("p", { class: "muted", style: "font-size: 13px", text: FORM_TEXT.python.note });
-  const submit = h("button", { class: "btn", type: "submit", disabled: !canGenerate || !S.caps, text: "Generate plan" });
+  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: FORM_TEXT[pick].placeholder, autocomplete: "off", required: true });
+  const note = h("p", { class: "muted", style: "font-size: 13px", text: FORM_TEXT[pick].note });
+  const submit = h("button", { class: "btn", id: "gen-submit", type: "submit", disabled: !canGenerate || !S.caps, text: "Generate plan" });
   const form = h("form", { class: "panel stack", id: "new-plan" },
     h("h2", { text: "New plan" }),
     h("div", { class: "field" }, h("span", { text: "Language" }), language),
@@ -78,20 +81,42 @@ function renderNewPlanForm() {
     note,
     h("p", { class: "muted", style: "font-size: 13px" }, "Before you see an exercise, its reference solution is run against its tests. Broken exercises are fixed or dropped."),
     !canGenerate && S.caps ? h("div", { class: "notice warn", text: "Claude access is off for this page, so new plans cannot be written. You can still continue your saved plans." }) : null,
+    h("div", { class: "notice bad", id: "lang-down", hidden: true }),
   );
   language.addEventListener("change", () => {
     const t = FORM_TEXT[form.querySelector('input[name="language"]:checked').value];
     topic.placeholder = t.placeholder;
     note.textContent = t.note;
+    updateLanguageGate();
   });
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const t = topic.value.trim();
     if (!t) { topic.focus(); return; }
     const lv = form.querySelector('input[name="level"]:checked').value;
+    if (langDown(LANGS[form.querySelector('input[name="language"]:checked').value])) return;
     startGeneration(t, lv, Number(count.value), form.querySelector('input[name="language"]:checked').value);
   });
+  queueMicrotask(updateLanguageGate);
   return form;
+}
+
+// A runtime can fail after the form is on screen (Python loads in the background),
+// so the form is patched in place, keeping what the learner typed.
+function updateLanguageGate() {
+  const form = document.getElementById("new-plan");
+  if (!form) return;
+  for (const L of Object.values(LANGS)) {
+    const input = document.getElementById("language-" + L.id);
+    if (input) input.disabled = langDown(L);
+  }
+  const checked = form.querySelector('input[name="language"]:checked');
+  const L = LANGS[checked ? checked.value : "python"];
+  const down = langDown(L);
+  document.getElementById("gen-submit").disabled = !ai.available || !S.caps || down;
+  const note = document.getElementById("lang-down");
+  note.hidden = !down;
+  note.textContent = down ? L.label + " could not load in this browser, so plans in " + L.label + " cannot be written. " + (Object.values(LANGS).some((o) => !langDown(o)) ? "Pick another language, or reload the page to try again." : "Reload the page to try again.") : "";
 }
 
 function renderPlanList() {

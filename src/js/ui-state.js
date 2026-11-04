@@ -15,6 +15,7 @@ const S = {
   helping: false,
   reviews: {},         // ex id -> {text, streaming, error} for the review being fetched (saved ones live in progress)
   gen: null,           // generation state
+  chip: false,         // runtime chip on screen: lesson and exercise views only
 };
 let editor = null;
 let saveTimer = null;
@@ -23,11 +24,14 @@ const crumbEl = document.getElementById("crumb");
 
 function setCrumb(text) { crumbEl.textContent = text || ""; }
 
-// The chip shows the runtime of the open plan; outside a plan, Python, since only Python has to load.
-function renderRuntimeChip() {
+// The chip shows the open plan's runtime, on lesson and exercise screens only.
+// show: true or false sets whether it is on screen; omitted, it keeps the current choice (status updates).
+function renderRuntimeChip(show) {
+  if (show !== undefined) S.chip = !!show && !!S.plan;
+  const chip = document.getElementById("py-chip");
+  chip.hidden = !S.chip;
   const L = langOf(S.plan);
   const st = L.runner.status;
-  const chip = document.getElementById("py-chip");
   chip.className = "chip " + (st.state === "ready" ? "ok" : st.state === "failed" ? "bad" : "warn");
   chip.textContent = L.label + (st.state === "ready" ? " ready" : st.state === "failed" ? " unavailable" : " loading");
   chip.title = st.state === "failed" ? st.detail : st.state !== "ready" ? "" : L.id === "python" ? "Pyodide 0.26.4, " + (st.mode === "worker" ? "Web Worker" : "main thread") : "Runs in a Web Worker";
@@ -36,6 +40,7 @@ function renderRuntimeChip() {
 runner.onStatus(() => {
   renderRuntimeChip();
   if (S.plan && document.getElementById("actions")) renderActions();
+  if (document.getElementById("new-plan")) updateLanguageGate();
 });
 
 document.getElementById("brand").addEventListener("click", () => goHome());

@@ -1,12 +1,15 @@
 async function startGeneration(topic, level, count, language) {
   const lang = LANGS[language] || LANGS.python;
   dbg.log("view", { view: "generating", topic, level, count, language: lang.id });
+  renderRuntimeChip(false);
   const controller = new AbortController();
   let phase = "ai";
   S.gen = { topic, level, count, language: lang.id, controller, steps: [{ label: "Claude writes " + count + " exercises", sub: "Waiting for Claude", state: "active" }], error: null };
   setCrumb("New plan: " + topic);
   renderGenerating();
   try {
+    // Without a working runtime no exercise can be checked, so do not spend a Claude call on the plan.
+    if (langDown(lang)) throw { code: "runtime", message: lang.label + " could not load, so exercises cannot be checked. " + lang.runner.status.detail };
     let chars = 0;
     const raw = await ai.generatePlan(lang, topic, level, count, {
       signal: controller.signal,
@@ -83,7 +86,7 @@ function renderGenerating() {
           h("div", { class: "notice bad", text: g.error }),
           h("div", { class: "row" },
             // Retrying the same topic would only be refused again.
-            g.unsupported ? null : h("button", { class: "btn", type: "button", onclick: () => startGeneration(g.topic, g.level, g.count, g.language), disabled: !ai.available, text: "Try again" }),
+            g.unsupported ? null : h("button", { class: "btn", type: "button", onclick: () => startGeneration(g.topic, g.level, g.count, g.language), disabled: !ai.available || langDown(LANGS[g.language]), text: "Try again" }),
             h("button", { class: "btn secondary", type: "button", onclick: () => goHome(), text: "Back to plans" }),
           ))
       : h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => { g.controller.abort(); goHome(); }, text: "Cancel" })),

@@ -88,6 +88,15 @@ try {
     await page.getByText("No plans yet").waitFor();
   });
 
+  await step("non-topic input is refused and Edit prompt prefills the form", async () => {
+    await page.fill("#topic", "hello");
+    await page.click("text=Generate plan");
+    await page.locator(".notice.bad", { hasText: "I didn't understand that" }).waitFor({ timeout: 10000 });
+    assert.equal(await page.locator("button", { hasText: "Try again" }).count(), 0);
+    await page.click("text=Edit prompt");
+    assert.equal(await page.inputValue("#topic"), "hello");
+  });
+
   await step("generate plan; broken ex6 is repaired, leaky ex2 rewritten, all 6 kept", async () => {
     await page.fill("#topic", "Python lists");
     await page.click("text=Generate plan");

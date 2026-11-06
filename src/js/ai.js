@@ -17,7 +17,7 @@ const ai = (() => {
       solution: `def snake_case_name(a, b):\\n    return a + b\\n`,
       test: `"args_py": "(2, 3)", "expected_py": "5"`,
       runtime: "The learner's code runs in Pyodide in the browser with only the Python standard library. No third-party package can be installed.",
-      unsupported: `First decide whether the topic is about a package outside the standard library (for example numpy, pandas, requests, flask, django, matplotlib or pygame). If it is, do not write a plan. Reply with only this JSON object:
+      unsupported: `Then decide whether the topic is about a package outside the standard library (for example numpy, pandas, requests, flask, django, matplotlib or pygame). If it is, do not write a plan. Reply with only this JSON object:
 {"unsupported_package": "the package name", "suggestion": "a related topic that needs only the standard library"}
 A general topic such as "data analysis" or "web scraping basics" is fine: write it with the standard library (csv, statistics, json, re, html.parser and so on).`,
       exercise: `- Every exercise asks the learner to write ONE function, named in "function_name". No classes, no input(), no printing required, no files or network. Standard library only: never import a third-party package.
@@ -37,7 +37,7 @@ A general topic such as "data analysis" or "web scraping basics" is fine: write 
       solution: `function camelCaseName(a, b) {\\n  return a + b;\\n}\\n`,
       test: `"args_js": "[2, 3]", "expected_js": "5"`,
       runtime: "The learner's code runs in a Web Worker in the browser: plain modern JavaScript only. There is no DOM, no Node.js API (fs, http, process, require) and no npm package.",
-      unsupported: `First decide whether the topic is about a library, framework or API outside the core language (for example React, Vue, jQuery, Express, lodash, Node.js modules such as fs or http, the DOM, or fetch). If it is, do not write a plan. Reply with only this JSON object:
+      unsupported: `Then decide whether the topic is about a library, framework or API outside the core language (for example React, Vue, jQuery, Express, lodash, Node.js modules such as fs or http, the DOM, or fetch). If it is, do not write a plan. Reply with only this JSON object:
 {"unsupported_package": "the library or API name", "suggestion": "a related topic that needs only core JavaScript"}
 A general topic such as "data processing" or "text parsing" is fine: write it with core JavaScript (arrays, objects, strings, Map, Set, JSON, RegExp, Math and so on).`,
       exercise: `- Every exercise asks the learner to write ONE function, declared with \`function\` and named in "function_name" in camelCase. No classes, no prompt() or alert(), no console output required, no DOM, files, network, timers, or async code. Core JavaScript only: never import or require a module.
@@ -114,6 +114,9 @@ Learner level: ${level}
 Number of exercises: ${count}
 
 ${t.runtime}
+
+First decide whether the topic names something a programming course can teach. A short broad topic such as "loops" or "strings" is fine: pick a sensible scope. If the input is a greeting, small talk, a question unrelated to programming, gibberish, or too vague to choose a subject (for example "hello", "how are you doing" or "stuff"), do not write a plan. Reply with only this JSON object:
+{"not_a_topic": true}
 
 ${t.unsupported}
 

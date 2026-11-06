@@ -56,7 +56,9 @@ const langDown = (L) => L.runner.status.state === "failed";
 
 function renderNewPlanForm() {
   const canGenerate = ai.available;
-  const pick = (Object.values(LANGS).find((L) => !langDown(L)) || LANGS.python).id;
+  const draft = S.draft || {};
+  const firstUp = (Object.values(LANGS).find((L) => !langDown(L)) || LANGS.python).id;
+  const pick = draft.language && !langDown(LANGS[draft.language]) ? draft.language : firstUp;
   const language = h("div", { class: "seg", role: "radiogroup", "aria-label": "Language" },
     Object.values(LANGS).map((L) =>
       h("label", {}, h("input", { type: "radio", name: "language", id: "language-" + L.id, value: L.id, checked: L.id === pick, disabled: langDown(L) }), h("span", { text: L.label })),
@@ -64,11 +66,11 @@ function renderNewPlanForm() {
   );
   const level = h("div", { class: "seg", role: "radiogroup", "aria-label": "Level" },
     ["beginner", "intermediate", "advanced"].map((lv, i) =>
-      h("label", {}, h("input", { type: "radio", name: "level", id: "level-" + lv, value: lv, checked: i === 0 }), h("span", { text: lv[0].toUpperCase() + lv.slice(1) })),
+      h("label", {}, h("input", { type: "radio", name: "level", id: "level-" + lv, value: lv, checked: draft.level ? lv === draft.level : i === 0 }), h("span", { text: lv[0].toUpperCase() + lv.slice(1) })),
     ),
   );
-  const count = h("select", { id: "count" }, [5, 6, 7, 8].map((n) => h("option", { value: String(n), selected: n === 6, text: n + " exercises" })));
-  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: FORM_TEXT[pick].placeholder, autocomplete: "off", required: true });
+  const count = h("select", { id: "count" }, [5, 6, 7, 8].map((n) => h("option", { value: String(n), selected: n === (draft.count || 6), text: n + " exercises" })));
+  const topic = h("input", { type: "text", id: "topic", maxlength: "200", placeholder: FORM_TEXT[pick].placeholder, autocomplete: "off", required: true, value: draft.topic || "" });
   const note = h("p", { class: "muted", style: "font-size: 13px", text: FORM_TEXT[pick].note });
   const submit = h("button", { class: "btn", id: "gen-submit", type: "submit", disabled: !canGenerate || !S.caps, text: "Generate plan" });
   const form = h("form", { class: "panel stack", id: "new-plan" },
@@ -95,6 +97,7 @@ function renderNewPlanForm() {
     if (!t) { topic.focus(); return; }
     const lv = form.querySelector('input[name="level"]:checked').value;
     if (langDown(LANGS[form.querySelector('input[name="language"]:checked').value])) return;
+    S.draft = null;
     startGeneration(t, lv, Number(count.value), form.querySelector('input[name="language"]:checked').value);
   });
   queueMicrotask(updateLanguageGate);

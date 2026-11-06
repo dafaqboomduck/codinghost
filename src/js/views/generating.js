@@ -20,6 +20,7 @@ async function startGeneration(topic, level, count, language) {
       },
     });
     if (S.gen.controller !== controller) return;
+    if (raw && raw.not_a_topic) throw notATopicError();
     if (raw && raw.unsupported_package) throw unsupportedPackageError(lang, raw);
     const n = raw && Array.isArray(raw.exercises) ? raw.exercises.length : 0;
     const nl = raw && Array.isArray(raw.lessons) ? raw.lessons.length : 0;
@@ -54,11 +55,11 @@ async function startGeneration(topic, level, count, language) {
   } catch (e) {
     if (!S.gen || S.gen.controller !== controller) return;
     if (e && e.code === "cancelled") { goHome(); return; }
-    if (e && e.code === "unsupported") {
+    if (e && (e.code === "unsupported" || e.code === "not_a_topic")) {
       S.gen.steps[0] = { label: "No plan written", sub: "", state: "fail" };
-      S.gen.unsupported = true;
+      S.gen.unsupported = e.code;
     }
-    if (e && (e.code === "too_few" || e.code === "runtime" || e.code === "unsupported")) S.gen.error = e.message;
+    if (e && (e.code === "too_few" || e.code === "runtime" || e.code === "unsupported" || e.code === "not_a_topic")) S.gen.error = e.message;
     else S.gen.error = phase === "save" ? dbErrorMessage(e) : aiErrorMessage(e);
     if (e && e.code === "not_granted") ai.init(null);
     renderGenerating();
@@ -87,6 +88,7 @@ function renderGenerating() {
           h("div", { class: "row" },
             // Retrying the same topic would only be refused again.
             g.unsupported ? null : h("button", { class: "btn", type: "button", onclick: () => startGeneration(g.topic, g.level, g.count, g.language), disabled: !ai.available || langDown(LANGS[g.language]), text: "Try again" }),
+            g.unsupported === "not_a_topic" ? h("button", { class: "btn", type: "button", onclick: () => editPrompt(g), text: "Edit prompt" }) : null,
             h("button", { class: "btn secondary", type: "button", onclick: () => goHome(), text: "Back to plans" }),
           ))
       : h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => { g.controller.abort(); goHome(); }, text: "Cancel" })),
@@ -100,4 +102,14 @@ function unsupportedPackageError(lang, raw) {
     ? "The " + pkg + " package is not available here. CodingHost runs Python in your browser with only the standard library"
     : pkg + " is not available here. CodingHost runs plain JavaScript in your browser, without libraries, the DOM or Node.js";
   return { code: "unsupported", message: why + ", so it cannot build a plan about " + pkg + "." + suggestion };
+}
+
+function notATopicError() {
+  return { code: "not_a_topic", message: "I didn't understand that. I cannot create a lesson for you using the input you gave me. Please edit the prompt and try again." };
+}
+
+// goHome clears S.gen, so the form values travel through S.draft instead.
+function editPrompt(g) {
+  S.draft = { topic: g.topic, level: g.level, count: g.count, language: g.language };
+  goHome();
 }

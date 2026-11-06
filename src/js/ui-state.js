@@ -16,6 +16,7 @@ const S = {
   reviews: {},         // ex id -> {text, streaming, error} for the review being fetched (saved ones live in progress)
   gen: null,           // generation state
   chip: false,         // runtime chip on screen: lesson and exercise views only
+  draft: null,         // {topic, level, count, language} to prefill the new-plan form once
 };
 let editor = null;
 let saveTimer = null;

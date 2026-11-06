@@ -4,7 +4,6 @@ Coding practice plans written by Claude, solved in an in-browser editor with rea
 
 - Spec: [spec/codinghost-spec.md](spec/codinghost-spec.md)
 - App source: `src/` (`html/`, `css/`, `js/`, `py/`); `build.py` inlines it into `app/codinghost.html`, one file with capabilities `sample`, `db`, `user`
-- Phase 0 smoke test: `smoke/pyodide-smoke.html`
 
 ## Supported languages
 The artifact currently supports creating Python and JavaScript lessons. I am curently working on adding support for more languages, including SQL and Go. If you want support added for a specific language, please open an issue and I will prioritize it.

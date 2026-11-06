@@ -3,13 +3,14 @@
   "private": true,
   "description": "Interactive Python coding tutor that runs as a claude.ai artifact.",
   "scripts": {
+    "dev": "npm run serve",
     "build": "python3 build.py",
     "vendor": "./scripts/vendor-pyodide.sh",
     "test": "node --test tests/",
     "pree2e": "python3 build.py",
     "e2e": "node tests/e2e.mjs",
     "preserve": "python3 build.py",
-    "serve": "python3 -m http.server 8765 --directory app"
+    "serve": "python3 scripts/serve.py"
   },
   "devDependencies": {
     "playwright-core": "1.48.2"

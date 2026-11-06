@@ -1,6 +1,7 @@
 function openPlan(plan, progress) {
   S.plan = plan;
   S.progress = progress || newProgress(plan);
+  renderRuntimeChip();
   const idx = Math.min(S.progress.current_index || 0, plan.exercises.length - 1);
   store.saveProfile({ last_plan_id: plan.id, updated_at: new Date().toISOString() }).catch(() => {});
   const li = lessonIndex(plan, S.progress.current_lesson);
@@ -21,6 +22,7 @@ function openExercise(i) {
   S.confirm = null;
   if (S.progress.current_index !== i || S.progress.current_lesson) { S.progress.current_index = i; S.progress.current_lesson = null; saveProgressSoon(); }
   const ex = S.plan.exercises[i];
+  const L = langOf(S.plan);
   dbg.log("view", { view: "exercise", plan: S.plan.id, exercise: ex.id, status: exState(ex).status });
   setCrumb("");
   viewEl.textContent = "";
@@ -31,7 +33,7 @@ function openExercise(i) {
   const doctest = h("pre", { class: "doctest" },
     visible.map((t, k) => [
       k ? "\n" : null,
-      h("span", { class: "ps", text: ">>> " }), callText(ex.function_name, t.args_py), "\n", t.expected_py,
+      h("span", { class: "ps", text: L.prompt }), L.call(ex.function_name, t[L.argsKey]), "\n", t[L.expectedKey],
     ]),
   );
 
@@ -51,7 +53,7 @@ function openExercise(i) {
 
   const host = h("div", {});
   const work = h("section", { class: "work" },
-    h("div", { class: "editor-box" }, h("div", { class: "editor-head" }, h("span", { text: "solution.py" }), h("span", { class: "spacer" }), h("span", { text: "Ctrl+Enter runs" })), host),
+    h("div", { class: "editor-box" }, h("div", { class: "editor-head" }, h("span", { text: L.file }), h("span", { class: "spacer" }), h("span", { text: "Ctrl+Enter runs" })), host),
     h("div", { id: "actions", class: "stack", style: "gap: 10px" }),
     h("div", { id: "output", class: "out", "aria-live": "polite" }),
   );
@@ -62,10 +64,10 @@ function openExercise(i) {
   const st = exState(ex);
   editor = CodeMirror(host, {
     value: st.code != null ? st.code : ex.starter_code,
-    mode: "python",
+    mode: L.mode,
     lineNumbers: true,
-    indentUnit: 4,
-    tabSize: 4,
+    indentUnit: L.indent,
+    tabSize: L.indent,
     indentWithTabs: false,
     matchBrackets: true,
     autoCloseBrackets: true,
@@ -76,12 +78,12 @@ function openExercise(i) {
       "Cmd-Enter": () => doRun(false),
       "Shift-Ctrl-Enter": () => doRun(true),
       "Shift-Cmd-Enter": () => doRun(true),
-      Tab: (cm) => (cm.somethingSelected() ? cm.indentSelection("add") : cm.replaceSelection("    ", "end")),
+      Tab: (cm) => (cm.somethingSelected() ? cm.indentSelection("add") : cm.replaceSelection(" ".repeat(L.indent), "end")),
       "Shift-Tab": (cm) => cm.indentSelection("subtract"),
     },
   });
   // Added after construction so it outranks the closebrackets keymap.
-  editor.addKeyMap({ "'\"'": quoteKey('"'), "'\''": quoteKey("'") });
+  editor.addKeyMap({ "'\"'": quoteKey('"', L), "'\''": quoteKey("'", L) });
   editor.on("change", () => {
     clearErrorLine();
     exState(ex).code = editor.getValue();
@@ -96,10 +98,10 @@ function openExercise(i) {
   window.scrollTo({ top: 0 });
 }
 
-// Stock closebrackets skips pairing after a word char, so r"..." and f'...' get one quote.
+// Stock closebrackets skips pairing after a word char, so Python's r"..." and f'...' get one quote.
 // It also pairs after "]" or "}", so a closing quote typed after them doubles up.
 // Handle both cases here; everything else falls through to the default.
-function quoteKey(q) {
+function quoteKey(q, L) {
   return (cm) => {
     if (cm.somethingSelected()) return CodeMirror.Pass;
     const cur = cm.getCursor();
@@ -117,7 +119,7 @@ function quoteKey(q) {
       cm.replaceSelection(q, "end");
       return;
     }
-    if (/(?:^|[^\w])[rRbBuUfF]{1,2}$/.test(before)) {
+    if (L.id === "python" && /(?:^|[^\w])[rRbBuUfF]{1,2}$/.test(before)) {
       cm.replaceSelection(q + q, "end");
       cm.execCommand("goCharLeft");
       return;
@@ -214,7 +216,8 @@ function renderActions() {
   if (!el) return;
   const ex = S.plan.exercises[S.index];
   const st = exState(ex);
-  const pyReady = runner.status.state === "ready";
+  const L = langOf(S.plan);
+  const pyReady = L.runner.status.state === "ready";
   const busy = S.running || !pyReady;
   el.textContent = "";
   const next = S.plan.exercises[S.index + 1];
@@ -227,7 +230,7 @@ function renderActions() {
   );
   el.append(row);
   if (!pyReady) {
-    el.append(h("div", { class: "notice " + (runner.status.state === "failed" ? "bad" : "warn"), text: runner.status.state === "failed" ? "Python could not load: " + runner.status.detail : "Loading Python… the first load takes a few seconds." }));
+    el.append(h("div", { class: "notice " + (L.runner.status.state === "failed" ? "bad" : "warn"), text: L.runner.status.state === "failed" ? L.label + " could not load: " + L.runner.status.detail : "Loading Python… the first load takes a few seconds." }));
   }
   if (S.confirm === "reset") {
     el.append(h("div", { class: "confirm" },
@@ -263,7 +266,9 @@ function markErrorLine(line) {
 }
 
 async function doRun(isSubmit) {
-  if (S.running || runner.status.state !== "ready" || !S.plan) return;
+  if (!S.plan) return;
+  const { runner } = langOf(S.plan);
+  if (S.running || runner.status.state !== "ready") return;
   const ex = S.plan.exercises[S.index];
   const exIndex = S.index;
   const code = editor.getValue();
@@ -286,7 +291,7 @@ async function doRun(isSubmit) {
       }),
     ]);
   } catch (e) {
-    res = { error: "Python is not available: " + ((e && e.message) || e), results: [], stdout: "", stderr: "" };
+    res = { error: langOf(S.plan).label + " is not available: " + ((e && e.message) || e), results: [], stdout: "", stderr: "" };
   }
   clearTimeout(watchdog);
   S.running = false;
@@ -380,7 +385,7 @@ function renderOutput() {
         call = "Hidden test " + (r.index + 1);
         if (r.status !== "pass") detail = r.status === "error" ? (r.message || "").split("\n").pop() : "Returned a wrong value. Inputs are hidden.";
       } else {
-        call = callText(ex.function_name, r.args);
+        call = langOf(S.plan).call(ex.function_name, r.args);
         if (r.status === "pass") detail = "→ " + r.expected;
         else if (r.status === "fail") detail = "expected " + r.expected + "\n     got " + r.actual;
         else detail = r.message;

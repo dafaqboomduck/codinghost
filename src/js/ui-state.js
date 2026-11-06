@@ -23,11 +23,18 @@ const crumbEl = document.getElementById("crumb");
 
 function setCrumb(text) { crumbEl.textContent = text || ""; }
 
-runner.onStatus((st) => {
+// The chip shows the runtime of the open plan; outside a plan, Python, since only Python has to load.
+function renderRuntimeChip() {
+  const L = langOf(S.plan);
+  const st = L.runner.status;
   const chip = document.getElementById("py-chip");
   chip.className = "chip " + (st.state === "ready" ? "ok" : st.state === "failed" ? "bad" : "warn");
-  chip.textContent = st.state === "ready" ? "Python ready" : st.state === "failed" ? "Python unavailable" : "Python loading";
-  chip.title = st.state === "failed" ? st.detail : st.state === "ready" ? "Pyodide 0.26.4, " + (st.mode === "worker" ? "Web Worker" : "main thread") : "";
+  chip.textContent = L.label + (st.state === "ready" ? " ready" : st.state === "failed" ? " unavailable" : " loading");
+  chip.title = st.state === "failed" ? st.detail : st.state !== "ready" ? "" : L.id === "python" ? "Pyodide 0.26.4, " + (st.mode === "worker" ? "Web Worker" : "main thread") : "Runs in a Web Worker";
+}
+
+runner.onStatus(() => {
+  renderRuntimeChip();
   if (S.plan && document.getElementById("actions")) renderActions();
 });
 

@@ -77,9 +77,3 @@ function toast(message) {
 function newId(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
-
-function callText(fn, argsPy) {
-  const a = String(argsPy || "").trim();
-  if (!a.startsWith("(")) return fn + "(" + a + ")";
-  return fn + a.replace(/,\s*\)$/, ")");
-}

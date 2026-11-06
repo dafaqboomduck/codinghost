@@ -102,7 +102,7 @@ async function doHelp(question) {
   renderTutor();
   let pendingFrame = false;
   try {
-    const res = await ai.help({ exercise: ex, lesson: lessonOf(S.plan, ex), code: editor.getValue(), run: S.lastRun[ex.id], level, question, shownHint: !!st.hint_shown }, {
+    const res = await ai.help({ lang: langOf(S.plan), exercise: ex, lesson: lessonOf(S.plan, ex), code: editor.getValue(), run: S.lastRun[ex.id], level, question, shownHint: !!st.hint_shown }, {
       onText: ({ text }) => {
         hint.text = text;
         if (!pendingFrame) {
@@ -165,7 +165,7 @@ async function doReview() {
   rerender();
   let pendingFrame = false;
   try {
-    const res = await ai.review({ exercise: ex, code, level: S.plan.level }, {
+    const res = await ai.review({ lang: langOf(S.plan), exercise: ex, code, level: S.plan.level }, {
       onText: ({ text }) => {
         live.text = text;
         if (!pendingFrame) {

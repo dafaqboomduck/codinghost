@@ -33,6 +33,8 @@ npm run serve          # http://localhost:8765/codinghost.html?dev
 
 `?dev` (only outside claude.ai) swaps in a local stand-in for Claude, the database and the user. Claude's replies come from `app/dev/sample-plan.json` (or `sample-plan-js.json` for JavaScript) and data goes to `localStorage`.
 
+`--port` can be passed to `npm run serve` to change the port. The page will reload on changes to any file in `src/`. **Example**: `npm run serve -- --port 8080`.
+
 ## Test
 
 ```sh

@@ -55,6 +55,22 @@ const store = (() => {
     savePlan(plan) { return write(base + "/plans/" + plan.id, plan); },
     async getProgress(id) { return plain(await db.doc(base + "/progress/" + id).get()); },
     saveProgress(id, progress) { return write(base + "/progress/" + id, progress); },
+    /**
+     * Archive or restore a plan. Its progress is kept either way.
+     * id: the plan id. archived: true to archive, false to restore.
+     * Returns the saved plan, or null when the plan no longer exists.
+     */
+    async setArchived(id, archived) {
+      // The flag lives on the plan, not the progress: a plan that was never started has no progress doc.
+      const path = base + "/plans/" + id;
+      const plan = plain(await db.doc(path).get());
+      if (!plan) return null;
+      if (archived) plan.archived_at = new Date().toISOString();
+      else delete plan.archived_at;
+      // A full set through write(), not update(): it keeps the one-write-per-document queue in charge of this path.
+      await write(path, plan);
+      return plan;
+    },
     // Progress goes first: a plan whose progress delete failed would show up again as unstarted.
     async deletePlan(id) {
       await db.doc(base + "/progress/" + id).delete();
@@ -62,6 +78,19 @@ const store = (() => {
     },
   };
 })();
+
+const isArchived = (plan) => !!(plan && plan.archived_at);
+
+/**
+ * Split listPlans() entries into the active list and the archive.
+ * Active keeps listPlans' order (latest activity first); the archive is newest archived first.
+ */
+function splitArchived(entries) {
+  const active = entries.filter((x) => !isArchived(x.plan));
+  const archived = entries.filter((x) => isArchived(x.plan))
+    .sort((a, b) => String(b.plan.archived_at).localeCompare(String(a.plan.archived_at)));
+  return { active, archived };
+}
 
 function dbErrorMessage(e) {
   const code = e && e.code;

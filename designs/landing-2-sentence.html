@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing Sentence</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<style>
+/* CodingHost tokens (src/css/styles.css) */
+:root {
+  --bg: #faf9f5; --surface: #ffffff; --sunken: #f0eee6; --fg: #141413; --muted: #73726c;
+  --border: rgba(31, 30, 29, .15); --border-strong: rgba(31, 30, 29, .3);
+  --accent: #c6613f; --accent-fg: #ffffff; --accent-soft: #f6e5dc;
+  --ok: #3f7a2f; --ok-soft: #e4eedb; --bad: #b53333; --bad-soft: #f7e1df; --warn: #8a5a00; --warn-soft: #f5ead2;
+  --shadow: 0 1px 3px rgba(31, 30, 29, .06), 0 4px 16px rgba(31, 30, 29, .04);
+  --font-display: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 12px; --radius-sm: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #262624; --surface: #30302e; --sunken: #1f1e1d; --fg: #faf9f5; --muted: #9c9a92;
+    --border: rgba(222, 220, 209, .15); --border-strong: rgba(222, 220, 209, .3);
+    --accent: #d97757; --accent-fg: #ffffff; --accent-soft: #4a3229;
+    --ok: #8cc265; --ok-soft: #2c3a24; --bad: #f08a80; --bad-soft: #4a2a27; --warn: #e3b25a; --warn-soft: #43361e;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 4px 16px rgba(0, 0, 0, .15);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #262624; --surface: #30302e; --sunken: #1f1e1d; --fg: #faf9f5; --muted: #9c9a92;
+  --border: rgba(222, 220, 209, .15); --border-strong: rgba(222, 220, 209, .3);
+  --accent: #d97757; --accent-fg: #ffffff; --accent-soft: #4a3229;
+  --ok: #8cc265; --ok-soft: #2c3a24; --bad: #f08a80; --bad-soft: #4a2a27; --warn: #e3b25a; --warn-soft: #43361e;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 4px 16px rgba(0, 0, 0, .15);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+
+/* ---------- Switcher bar (not part of any design) ---------- */
+.sw {
+  position: sticky; top: 0; z-index: 50; height: 34px; display: flex; align-items: center; gap: 2px;
+  padding: 0 10px; background: var(--fg); color: var(--bg); font-size: 12.5px; overflow-x: auto; white-space: nowrap;
+}
+.sw button { background: none; border: 0; color: inherit; opacity: .6; padding: 5px 9px; border-radius: 5px; cursor: pointer; }
+.sw button:hover { opacity: .9; }
+.sw button[aria-pressed="true"] { opacity: 1; background: rgba(127, 127, 127, .28); }
+.sw .gap { flex: 1; min-width: 12px; }
+.sw .sep { width: 1px; height: 14px; background: currentColor; opacity: .25; margin: 0 6px; }
+.sw .note { opacity: .55; padding: 0 8px; }
+
+/* Stage: full width, or a 390px phone column. Designs use @container so both work in one window. */
+.stage { container-type: inline-size; min-height: calc(100vh - 34px); margin: 0 auto; background: var(--bg); }
+.stage.phone { max-width: 390px; border-inline: 1px dashed var(--border-strong); }
+.design { display: none; }
+.design.on { display: block; }
+
+/* Shared bits */
+.wrapx { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+@container (max-width: 600px) { .wrapx { padding: 0 16px; } }
+.brand { font-family: var(--font-display); font-weight: 500; font-size: 18px; letter-spacing: -.01em; }
+.brand span { color: var(--accent); }
+.muted { color: var(--muted); }
+.tab { font-variant-numeric: tabular-nums; }
+.dots-btn { background: none; border: 0; padding: 4px 6px; border-radius: 6px; color: var(--muted); cursor: pointer; line-height: 0; }
+.dots-btn:hover { background: var(--sunken); color: var(--fg); }
+.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.textsel, select.slot { field-sizing: content; }
+.textsel { appearance: none; border: 0; background: none; padding: 2px 16px 2px 0; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 5px center, right 1px center; background-size: 4px 4px; background-repeat: no-repeat; }
+.textsel:focus-visible, .linkbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); }
+.linkbtn.on { color: var(--fg); }
+.linkbtn:hover { color: var(--fg); }
+
+/* ======== 2. Sentence ======== */
+.d2 .top { display: flex; align-items: center; height: 64px; border-bottom: 1px solid var(--border); }
+.d2 .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 72px; padding: 80px 0 64px; }
+.d2 .say { font-family: var(--font-display); font-size: 40px; line-height: 1.45; letter-spacing: -.015em; }
+.d2 .say .slot { display: inline-block; border: 0; border-bottom: 2px solid var(--border-strong); background: none; color: var(--accent); font: inherit; padding: 0 2px; outline: 0; }
+.d2 .say .slot:focus { border-bottom-color: var(--accent); }
+.d2 .say input.slot { width: 9.5em; max-width: 100%; }
+.d2 .say input.slot::placeholder { color: var(--muted); opacity: .55; }
+.d2 .say select.slot { appearance: none; cursor: pointer; }
+.d2 .cta { margin-top: 36px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.d2 .btn { background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 500; cursor: pointer; }
+.d2 .fine { font-size: 13px; color: var(--muted); max-width: 46ch; }
+.d2 aside h2 { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; gap: 14px; align-items: baseline; }
+.d2 aside h2 .linkbtn { font: inherit; letter-spacing: inherit; text-transform: inherit; }
+.d2 .plan { padding: 16px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; cursor: pointer; }
+.d2 .plan .t { font-family: var(--font-display); font-size: 19px; line-height: 1.3; }
+.d2 .plan:hover .t { color: var(--accent); }
+.d2 .plan .m { font-size: 13px; color: var(--muted); grid-column: 1; }
+.d2 .plan .dots-btn { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+@container (max-width: 820px) {
+  .d2 .grid { grid-template-columns: minmax(0, 1fr); gap: 48px; padding-top: 40px; }
+  .d2 .say { font-size: 28px; }
+  .d2 aside { order: -1; }
+}
+
+/* Small popover for ⋯, shared */
+.pop { position: absolute; z-index: 20; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; display: grid; }
+.pop button { text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.pop button:hover { background: var(--sunken); }
+.pop button.bad { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<nav class="sw" aria-label="Design switcher">
+  <span class="note" style="opacity:1">2 · Sentence</span>
+  <span class="gap"></span>
+  <span class="note" id="sw-note"></span>
+  <span class="sep"></span>
+  <button type="button" id="sw-phone" aria-pressed="false">Phone</button>
+  <button type="button" id="sw-empty" aria-pressed="false">New user</button>
+  <button type="button" id="sw-theme">Dark</button>
+</nav>
+
+<div class="stage" id="stage"></div>
+
+<script>
+// Same content as the dev sample data, so only layout differs between ideas.
+const PLANS = [
+  { topic: "Python lists", lang: "Python", level: "beginner", done: 3, total: 6, when: "9 Nov", next: "Ex 4 · Build a new list in a loop", lessons: "Lesson 2 of 3" },
+  { topic: "Recursion and memoization with dictionaries of partial results", lang: "Python", level: "intermediate", done: 1, total: 7, when: "4 Nov" },
+  { topic: "JavaScript arrays and loops", lang: "JavaScript", level: "beginner", done: 0, total: 6, when: "2 Nov" },
+];
+const ARCHIVED = [
+  { topic: "String formatting", lang: "Python", level: "beginner", done: 6, total: 6, when: "Archived 28 Oct" },
+  { topic: "Regular expressions", lang: "JavaScript", level: "advanced", done: 2, total: 8, when: "Archived 12 Oct" },
+];
+const NOTES = {
+  1: "Search-engine calm: one rounded field, options as text, plans as a quiet list.",
+  2: "The form is a sentence you fill in. Plans sit to the side.",
+  3: "Returning learners see their last plan first; new plan is one line.",
+  4: "Utilitarian: command line for new plans, a dense table for the rest.",
+};
+
+const state = { d: "2", archived: false, empty: false };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const DOTS = '<svg class="ico" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>';
+const ARROW = '<svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>';
+const dots = (p) => `<button class="dots-btn" type="button" data-menu="${esc(p.topic)}" aria-label="More actions for ${esc(p.topic)}">${DOTS}</button>`;
+const action = (p) => (p.done === p.total ? "Review" : p.done ? "Continue" : "Start");
+const list = () => (state.empty ? [] : state.archived ? ARCHIVED : PLANS);
+// The app defaults to 6 exercises, so any option starting with 6 is preselected.
+const sel = (opts, cls = "textsel") => `<select class="${cls}">${opts.map((o) => `<option${String(o).startsWith("6") ? " selected" : ""}>${o}</option>`).join("")}</select>`;
+const LANGS = ["Python", "JavaScript"], LEVELS = ["Beginner", "Intermediate", "Advanced"], COUNTS = ["5 exercises", "6 exercises", "7 exercises", "8 exercises"];
+
+// Archive switch, worded per design. Hidden for a new user (nothing archived yet).
+const switchLinks = (sep = "") => state.empty ? "" :
+  `<button class="linkbtn ${state.archived ? "" : "on"}" data-arch="0">Active ${sep}${PLANS.length}</button>` +
+  `<button class="linkbtn ${state.archived ? "on" : ""}" data-arch="1">Archived ${sep}${ARCHIVED.length}</button>`;
+
+const D = {
+  2: () => `<div class="design d2 on">
+    <div class="wrapx">
+      <div class="top"><span class="brand">Coding<span>Host</span></span></div>
+      <div class="grid">
+        <section>
+          <p class="say">Teach me <input class="slot" placeholder="list comprehensions" aria-label="Topic"> in ${sel(LANGS, "slot")}, at ${sel(["beginner", "intermediate", "advanced"], "slot")} level, in ${sel(["5", "6", "7", "8"], "slot")} exercises.</p>
+          <div class="cta"><button class="btn">Write my plan</button><p class="fine">Every exercise is checked against its own tests before you see it. Core language only, no packages.</p></div>
+        </section>
+        ${state.empty ? `<aside><h2>Your plans</h2><p class="muted" style="margin-top:14px;font-size:14px">Nothing yet. Your first plan shows up here, with progress saved as you go.</p></aside>` :
+        `<aside>
+          <h2><span>Your plans</span><span style="flex:1"></span>${switchLinks()}</h2>
+          ${list().map((p) => `<div class="plan"><span class="t">${esc(p.topic)}</span>${dots(p)}<span class="m tab">${p.lang} · ${p.level} · ${p.done} of ${p.total} · ${p.when}</span></div>`).join("")}
+        </aside>`}
+      </div>
+    </div></div>`,
+};
+
+const stage = document.getElementById("stage");
+function render() {
+  stage.innerHTML = D[state.d]();
+  document.querySelectorAll(".sw [data-d]").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.d) === state.d)));
+  document.getElementById("sw-note").textContent = NOTES[state.d];
+  document.getElementById("sw-empty").setAttribute("aria-pressed", String(state.empty));
+}
+
+document.querySelector(".sw").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (false) { state.d = Number(b.dataset.d); history.replaceState(null, "", "#" + state.d); state.archived = false; }
+  if (b.id === "sw-phone") { const on = stage.classList.toggle("phone"); b.setAttribute("aria-pressed", String(on)); }
+  if (b.id === "sw-empty") state.empty = !state.empty;
+  if (b.id === "sw-theme") {
+    const r = document.documentElement;
+    const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark";
+    b.textContent = dark ? "Dark" : "Light";
+  }
+  render();
+});
+
+// Archive switch and ⋯ menu inside the designs, so the ideas can be poked at.
+let pop = null;
+const closePop = () => { if (pop) { pop.remove(); pop = null; } };
+stage.addEventListener("click", (e) => {
+  const arch = e.target.closest("[data-arch]");
+  if (arch) { state.archived = arch.dataset.arch === "1"; closePop(); render(); return; }
+  const m = e.target.closest("[data-menu]");
+  closePop();
+  if (!m) return;
+  e.stopPropagation();
+  const r = m.getBoundingClientRect();
+  pop = document.createElement("div");
+  pop.className = "pop";
+  pop.innerHTML = `<button>${state.archived ? "Restore" : "Archive"}</button><button class="bad">Delete…</button>`;
+  pop.style.top = (r.bottom + scrollY + 4) + "px";
+  pop.style.left = Math.max(8, r.right + scrollX - 160) + "px";
+  document.body.append(pop);
+});
+document.addEventListener("click", (e) => { if (pop && !pop.contains(e.target)) closePop(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+
+render();
+</script>
+</body>
+</html>

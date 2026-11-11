@@ -277,14 +277,42 @@ try {
     if (shots) await page.screenshot({ path: path.join(shots, "complete.png"), fullPage: true });
   });
 
-  await step("deleting a plan asks first, then removes it and its progress", async () => {
+  const menuItem = async (name) => {
+    await page.click(".plan-item >> button[aria-label^='More actions for']");
+    await page.click(`.menu >> text=${name}`);
+  };
+
+  await step("archiving hides a plan, keeps it restorable, and Undo brings it back", async () => {
     await page.click("text=Back to plans");
     await page.locator(".plan-item").first().waitFor();
     assert.equal(await page.locator(".plan-item .chip", { hasText: "legacy" }).count(), 0, "new plan marked legacy");
-    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    await menuItem("Archive");
+    await page.getByText("All your plans are archived.").waitFor();
+    assert.equal(await page.locator(".plan-item").count(), 0);
+    await page.click(".undo >> text=Undo");
+    await page.locator(".plan-item").first().waitFor();
+    assert.equal(await page.locator("[role=tab]").count(), 0, "tabs shown with nothing archived");
+
+    await menuItem("Archive");
+    await page.reload();
+    await page.getByText("All your plans are archived.").waitFor();
+    await page.click("[role=tab] >> text=Archived · 1");
+    await page.locator(".plan-item.is-archived").waitFor();
+    if (shots) await page.screenshot({ path: path.join(shots, "home-archived.png"), fullPage: true });
+    // Escape closes the menu without acting.
+    await page.click(".plan-item >> button[aria-label^='More actions for']");
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator(".menu").count(), 0);
+    await menuItem("Restore");
+    await page.locator(".plan-item:not(.is-archived)").first().waitFor();
+    assert.equal(await page.locator("[role=tab]").count(), 0, "tabs left after restoring the last archived plan");
+  });
+
+  await step("deleting a plan asks first, then removes it and its progress", async () => {
+    await menuItem("Delete");
     await page.click(".confirm >> text=Cancel");
     assert.equal(await page.locator(".plan-item").count(), 1);
-    await page.click(".plan-item >> button[aria-label^='Delete plan']");
+    await menuItem("Delete");
     if (shots) await page.screenshot({ path: path.join(shots, "home-delete.png"), fullPage: true });
     await page.click(".confirm >> button.danger");
     await page.getByText("No plans yet").waitFor();

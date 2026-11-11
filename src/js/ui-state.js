@@ -17,6 +17,9 @@ const S = {
   gen: null,           // generation state
   chip: false,         // runtime chip on screen: lesson and exercise views only
   draft: null,         // {topic, level, count, language} to prefill the new-plan form once
+  menu: null,          // plan id whose "⋯" menu is open on home
+  undo: null,          // {id, topic} of the plan just archived, for the Undo notice
+  showArchived: false, // Archived tab selected on home
 };
 let editor = null;
 let saveTimer = null;

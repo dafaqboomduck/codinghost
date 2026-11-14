@@ -58,6 +58,9 @@
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+/* Column layout so main grows and the debug footer stays at the bottom of short pages. */
+body { display: flex; flex-direction: column; min-height: 100dvh; }
+body > .wrap { width: 100%; }
 .wrap {
   max-width: 1240px; margin: 0 auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -110,7 +113,8 @@ body::before {
 .chip.warn { color: var(--warn); background: var(--warn-soft); }
 .chip.plain::before { display: none; }
 
-main.wrap { padding-block: 28px 64px; }
+main.wrap { padding-block: 28px 64px; flex: 1 0 auto; display: flex; flex-direction: column; }
+main.wrap > * { width: 100%; }
 
 /* Controls */
 .btn {
@@ -149,19 +153,53 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .notice.warn { background: var(--warn-soft); color: var(--warn); }
 .notice.ok { background: var(--ok-soft); color: var(--ok); }
 
-/* Home */
-.home-head { display: grid; gap: 8px; margin-bottom: 24px; max-width: 65ch; }
-.home-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
-.plans { display: grid; gap: 0; }
-.plan-item {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; align-items: center;
-  padding: 14px 0; border-top: 1px solid var(--border);
-}
-.plan-item:first-child { border-top: 0; padding-top: 0; }
-.plan-item .title { font-weight: 600; font-size: 16px; overflow-wrap: anywhere; }
-.plan-item .meta { font-size: 13px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.meter { height: 6px; background: var(--sunken); border-radius: 3px; overflow: hidden; width: 120px; max-width: 100%; }
-.meter > i { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+/* Home: one column. Heading, the new-plan box when open, then the plan list. */
+.home { flex: 1 0 auto; max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.home-head { display: flex; align-items: baseline; gap: 16px; margin-top: 24px; }
+.home-head h1 { font-size: 40px; font-weight: 400; letter-spacing: -.02em; flex: 1; }
+.fab-new { display: none; }
+.btn.wide { width: 100%; justify-content: center; padding: 14px; font-size: 15px; }
+
+.composer { background: var(--sunken); border-radius: var(--radius); padding: 16px 18px 18px; display: grid; gap: 14px; }
+.composer-head { display: flex; align-items: center; justify-content: space-between; margin: -4px -8px -2px 0; min-height: 32px; }
+.composer-head h2 { font: 500 15px var(--font-body); }
+.composer .topic { font: 16px var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 12px 14px; width: 100%; }
+.composer .topic:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 0; }
+.cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cell { position: relative; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); padding: 7px 10px 8px; display: grid; gap: 1px; min-width: 0; }
+.cell:focus-within { border-color: var(--accent); outline: 2px solid var(--accent-soft); }
+.cell .lbl { font-size: 12px; color: var(--muted); }
+.cell .v { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+.cell .v::after { content: "▾"; font-size: 10px; color: var(--muted); margin-left: auto; }
+/* The real select covers the box invisibly: tapping anywhere opens the native picker. */
+.cell select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.composer-note { font-size: 13px; color: var(--muted); }
+
+/* Plan list: quiet rows, a 2px progress line, ⋯ on hover */
+.plan-tabs { display: flex; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.plan-tabs .tab { font: 13px var(--font-body); background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; }
+.plan-tabs .tab:hover, .plan-tabs .tab.on { color: var(--fg); }
+.plan-tabs .tab.on { font-weight: 500; }
+.plan-list:not(:has(.plan-tabs)) .plans { border-top: 1px solid var(--border); }
+.plans { display: grid; }
+.plan-item { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0 14px; align-items: center; padding: 12px 0 0; border-bottom: 1px solid var(--border); }
+.plan-item .t { font: 500 15px var(--font-body); color: var(--fg); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.plan-item .t::after { content: ""; position: absolute; inset: 0; }
+.plan-item .t:focus-visible { outline: none; }
+.plan-item .t:focus-visible::after { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.plan-item:hover .t { color: var(--accent); }
+.plan-item .m { font-size: 13px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.plan-item .m .chip { margin-right: 4px; }
+.plan-item .menu-wrap { z-index: 1; }
+.plan-item .menu-wrap > .btn { opacity: 0; }
+.plan-item:hover .menu-wrap > .btn, .plan-item .menu-wrap > .btn:focus-visible, .plan-item .menu-wrap > .btn[aria-expanded="true"] { opacity: 1; }
+@media (hover: none) { .plan-item .menu-wrap > .btn { opacity: 1; } }
+.plan-item .bar { grid-column: 1 / -1; height: 2px; background: var(--sunken); margin-top: 10px; }
+.plan-item .bar > i { display: block; height: 100%; background: var(--ok); }
+.plan-item .confirm { grid-column: 1 / -1; margin: 10px 0 12px; position: relative; z-index: 1; }
+.plan-item.is-archived .t { color: var(--muted); }
+.plans-empty { color: var(--muted); font-size: 14px; padding: 4px 0; max-width: 56ch; }
+.plans-empty strong { color: var(--fg); font-weight: 500; }
 .tabnum { font-variant-numeric: tabular-nums; }
 /* Plan "⋯" menu and archive */
 .plan-item.is-archived .title { color: var(--muted); font-weight: 500; }
@@ -177,14 +215,8 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 }
 .menu button:hover, .menu button:focus-visible { background: var(--sunken); outline: none; }
 .menu button.bad { color: var(--bad); }
-/* Active / Archived switch: .seg look, but buttons instead of radios */
-.seg.tabs button { font: 500 14px var(--font-body); padding: 7px 12px; border: 0; color: var(--muted); background: var(--surface); cursor: pointer; white-space: nowrap; }
-.seg.tabs button + button { border-left: 1px solid var(--border-strong); }
-.seg.tabs button.on { background: var(--accent-soft); color: var(--accent); }
-.seg.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .linkish { font: 500 14px var(--font-body); background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
 .linkish:hover { text-decoration: underline; }
-.empty { display: grid; gap: 8px; padding: 18px; border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--muted); }
 
 /* Generating */
 .gen { max-width: 720px; display: grid; gap: 20px; }
@@ -330,16 +362,41 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket { color: var(--bad); }
 /* Single column: phones, and claude.ai's chat side panel (roughly 8:9). Task, editor and results
    stack, so the editor grows with the code instead of a fixed height that pushes Run below the fold. */
 @media (max-width: 900px) {
-  .home-grid, .ex-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  /* A returning learner wants their plans first; with no plans the form leads. */
-  .home-grid > .plan-list:has(.plan-item) { order: -1; }
+  .ex-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   main.wrap { padding-block: 20px 48px; }
-  .home-head { margin-bottom: 18px; }
+  .home-head { margin-top: 4px; }
+  .home-head h1 { font-size: 32px; }
   .strip { margin-bottom: 14px; }
   .panel { padding: 16px; }
   .task { gap: 12px; }
   .CodeMirror { height: auto; }
   .CodeMirror-scroll { min-height: 168px; }
+}
+/* Phones: a floating "+ New plan" pill opens the box, which docks at the bottom edge, within thumb reach.
+   The box is sticky, not fixed: it keeps its space in the flow, so nothing scrolls under it unreachable. */
+@media (max-width: 600px) {
+  main.wrap:has(> .home) { padding-bottom: 0; }
+  .home { gap: 18px; }
+  /* Room under the last plan so the pill never covers its ⋯ button. */
+  .home:has(> .fab-new) { padding-bottom: 96px; }
+  .home-head .new-plan-btn { display: none; }
+  .home > .composer {
+    order: 10; margin-top: auto; position: sticky; bottom: 0; z-index: 4;
+    margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, .12);
+  }
+  .fab-new {
+    display: inline-flex; align-items: center; gap: 8px; position: fixed; z-index: 20;
+    right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    height: 52px; padding: 0 20px 0 16px; border: 0; border-radius: 999px; cursor: pointer;
+    font: 500 15px var(--font-body); color: var(--accent-fg); background: var(--accent);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .22), 0 1px 3px rgba(0, 0, 0, .18);
+  }
+  .fab-new:active { transform: scale(.96); }
+  .fab-new svg { width: 20px; height: 20px; stroke-width: 2.2; }
+  /* The bottom edge belongs to the pill and the box, so messages show under the top bar instead. */
+  .toast { bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); }
 }
 @media (max-width: 520px) {
   h1 { font-size: 24px; }

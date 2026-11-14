@@ -71,6 +71,9 @@ try {
   await step("home renders with empty state", async () => {
     await page.getByText("No plans yet").waitFor();
     if (shots) await page.screenshot({ path: path.join(shots, "home.png"), fullPage: true });
+    // A short page still puts the debug log button at the bottom of the window.
+    const foot = await page.locator("#debug-toggle").boundingBox();
+    assert.ok(foot.y + foot.height > 900 - 80, "debug log button sits at y=" + foot.y);
   });
 
   await step("python loads in a worker; the runtime chip stays off the home screen", async () => {
@@ -222,7 +225,7 @@ try {
   await step("reload resumes the plan, exercise and code", async () => {
     await page.waitForTimeout(2500); // let the debounced save land
     await page.reload();
-    await page.locator("button", { hasText: "Continue" }).click();
+    await page.locator(".plan-item button.t").first().click();
     await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
     assert.match(await getCode(), /sum\(1 for n in numbers/);
   });
@@ -296,7 +299,7 @@ try {
     await menuItem("Archive");
     await page.reload();
     await page.getByText("All your plans are archived.").waitFor();
-    await page.click("[role=tab] >> text=Archived · 1");
+    await page.click("[role=tab] >> text=Archived 1");
     await page.locator(".plan-item.is-archived").waitFor();
     if (shots) await page.screenshot({ path: path.join(shots, "home-archived.png"), fullPage: true });
     // Escape closes the menu without acting.
@@ -331,7 +334,7 @@ try {
     });
     await page.reload();
     await page.locator(".plan-item", { hasText: "Old plan" }).locator(".chip", { hasText: "legacy" }).waitFor();
-    await page.click(".plan-item >> text=Start");
+    await page.click(".plan-item:has-text('Old plan') >> button.t");
     await page.locator(".task h2", { hasText: "Old" }).waitFor();
     assert.equal(await page.locator(".strip .step.lesson").count(), 0);
     assert.equal(await page.locator(".back-link").count(), 0);
@@ -346,7 +349,7 @@ try {
       localStorage.setItem("codinghost-dev-db", JSON.stringify(all));
     });
     await page.click("#brand");
-    await page.click(".plan-item:has-text('Flat plan') >> text=Start");
+    await page.click(".plan-item:has-text('Flat plan') >> button.t");
     await page.locator(".lesson-view h2", { hasText: "Flat lesson" }).waitFor();
     assert.equal(await page.locator(".lesson-view .dot").count(), 0);
     assert.equal(await page.locator(".lesson-view .example").count(), 2);
@@ -357,7 +360,8 @@ try {
 
   await step("JavaScript: a library topic is refused without a plan", async () => {
     await page.click("#brand");
-    await page.click("label:has(#language-javascript)");
+    await page.click(".new-plan-btn");
+    await page.selectOption("#language", "javascript");
     assert.match(await page.getAttribute("#topic", "placeholder"), /JavaScript/);
     await page.fill("#topic", "React hooks");
     await page.click("text=Generate plan");
@@ -366,7 +370,8 @@ try {
   });
 
   await step("JavaScript: generate plan; broken ex3 is repaired, all 4 kept", async () => {
-    await page.click("label:has(#language-javascript)");
+    await page.click(".new-plan-btn");
+    await page.selectOption("#language", "javascript");
     await page.fill("#topic", "JavaScript arrays");
     await page.click("text=Generate plan");
     await page.locator(".lesson-view h2", { hasText: "Reading an array" }).waitFor({ timeout: 30000 });
@@ -417,9 +422,9 @@ try {
   await step("JavaScript: the plan list names the language, and reload resumes", async () => {
     await page.waitForTimeout(2500); // let the debounced save land
     await page.reload();
-    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator(".chip", { hasText: "JavaScript" }).waitFor();
-    await page.locator(".plan-item", { hasText: "Flat plan" }).locator(".chip", { hasText: "Python" }).waitFor();
-    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator("button", { hasText: "Continue" }).click();
+    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator(".lang", { hasText: "JavaScript" }).waitFor();
+    await page.locator(".plan-item", { hasText: "Flat plan" }).locator(".lang", { hasText: "Python" }).waitFor();
+    await page.locator(".plan-item", { hasText: "JavaScript arrays" }).locator("button.t").click();
     await page.locator('.strip [aria-current="step"][aria-label^="Exercise 2,"]').waitFor();
     assert.match(await getCode(), /words\.filter/);
     await page.click("#brand");
@@ -445,6 +450,20 @@ try {
     await p.locator(".doctest").waitFor();
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "exercise overflows");
     if (shots) await p.screenshot({ path: path.join(shots, "phone-exercise-dark.png"), fullPage: true });
+    await p.click("#brand");
+    await p.locator(".plan-item").first().waitFor();
+    await p.locator(".fab-new").waitFor();
+    assert.equal(await p.isVisible(".new-plan-btn"), false, "header button shown on phone");
+    if (shots) await p.screenshot({ path: path.join(shots, "phone-home-fab.png") });
+    await p.click(".fab-new");
+    await p.locator("#new-plan").waitFor();
+    assert.equal(await p.locator(".fab-new").count(), 0);
+    const box = await p.locator("#new-plan").boundingBox();
+    // Docked at the bottom, with only the debug log footer under it.
+    const foot = await p.locator("#debug-toggle").boundingBox();
+    assert.ok(box.y + box.height <= foot.y && foot.y - (box.y + box.height) < 40, "new-plan box not docked above the footer");
+    assert.ok(foot.y + foot.height > 844 - 80, "debug log button not at the bottom");
+    if (shots) await p.screenshot({ path: path.join(shots, "phone-home-composer.png") });
     await phone.close();
   });
 
@@ -454,16 +473,17 @@ try {
     const p = await down.newPage();
     p.on("pageerror", (e) => errors.push("pageerror: " + e.message));
     await p.goto(base);
-    await p.locator("#language-python[disabled]").waitFor({ state: "attached", timeout: 30000 });
+    await p.locator("#language option[value=python][disabled]").waitFor({ state: "attached", timeout: 30000 });
     await p.locator("#lang-down", { hasText: "Python could not load" }).waitFor();
     assert.equal(await p.isEnabled("text=Generate plan"), false);
-    await p.click("label:has(#language-javascript)");
+    await p.selectOption("#language", "javascript");
     assert.equal(await p.isVisible("#lang-down"), false);
     assert.equal(await p.isEnabled("text=Generate plan"), true);
     // A fresh form after the failure starts on a language that works.
     await p.click("#brand");
     await p.getByText("Your plans").waitFor();
-    assert.equal(await p.isChecked("#language-javascript"), true);
+    // No plans yet, so the box is already open.
+    assert.equal(await p.inputValue("#language"), "javascript");
     assert.equal(await p.isVisible("#py-chip"), false);
     await down.close();
   });

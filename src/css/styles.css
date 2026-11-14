@@ -90,6 +90,12 @@ body::before {
   background: none; border: 0; padding: 0; color: var(--fg); cursor: pointer;
 }
 .brand span { color: var(--accent); }
+/* Only present in --dev builds (see build.py). */
+.brand .dev-badge {
+  margin-left: 8px; padding: 2px 8px; border-radius: 999px; vertical-align: 3px;
+  font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--accent-soft); color: var(--accent);
+}
 .crumb { color: var(--muted); font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 /* Class rules like .chip set display, which would otherwise override the hidden attribute. */
 [hidden] { display: none !important; }

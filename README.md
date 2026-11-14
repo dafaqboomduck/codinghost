@@ -45,3 +45,5 @@ npm run e2e            # full browser run in dev mode; set CHROMIUM_PATH if need
 ## Publish
 
 Run `python3 build.py`, then publish `app/codinghost.html` as an artifact with capabilities `{sample: {}, db: {}, user: {}}`, plus these files under `pyodide/`: `pyodide.js`, `pyodide.asm.js`, `pyodide.asm.wasm`, `python_stdlib.zip.b64.txt` and `pyodide-lock.json`. Do not publish `python_stdlib.zip` or `app/dev/`.
+
+There are two artifacts. **CodingHost** is built from `main`. **CodingHost Dev** is built from `dev` or the current `feature/` branch with `python3 build.py --dev`, which renames it and adds a Dev badge to the navbar. Each artifact has its own database, so plans made in one do not show in the other.

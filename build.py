@@ -5,7 +5,7 @@ Inlines every local stylesheet and script that src/html/codinghost.html
 references, so the result can be published as one claude.ai artifact.
 Remote URLs (CDN scripts, Google Fonts) are left as they are.
 
-Usage: python3 build.py [--out app/codinghost.html]
+Usage: python3 build.py [--out app/codinghost.html] [--dev]
 """
 
 import argparse
@@ -75,12 +75,32 @@ def build(page):
     return html
 
 
+def mark_dev(html):
+    """Label the page as the dev build, so it is not mistaken for the main artifact.
+
+    The artifact takes its name from <title>; the navbar badge tells the two
+    apart once the page is open.
+    """
+    subs = [
+        (r"<title>CodingHost</title>", "<title>CodingHost Dev</title>"),
+        (r"Coding<span>Host</span></button>", 'Coding<span>Host</span><span class="dev-badge">Dev</span></button>'),
+    ]
+    for pattern, repl in subs:
+        html, n = re.subn(pattern, repl, html, count=1)
+        if not n:
+            sys.exit(f"build.py: --dev could not find {pattern!r} in the page")
+    return html
+
+
 def main():
     parser = argparse.ArgumentParser(description=str(__doc__).splitlines()[0])
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="output file (default: app/codinghost.html)")
+    parser.add_argument("--dev", action="store_true", help='mark the build "CodingHost Dev" in the title and navbar')
     args = parser.parse_args()
 
     html = build(PAGE)
+    if args.dev:
+        html = mark_dev(html)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
     print(f"wrote {args.out} ({len(html.encode()) // 1024} KB)")

@@ -112,7 +112,7 @@ try {
 
   await step("a new plan opens on lesson 1, one page per concept; the leaky example is dropped", async () => {
     await page.locator(".lesson-view h2", { hasText: "Reading a list" }).waitFor();
-    assert.equal(await page.locator(".lesson-view .dot").count(), 3);
+    assert.equal(await page.locator(".lesson-view .toc-page").count(), 3);
     assert.equal(await page.locator(".lesson-view .page-title").innerText(), "Indexes: items[0], items[-1]");
     assert.equal(await page.locator(".lesson-view .example").count(), 1);
     assert.equal(await page.locator("text=Try it yourself").count(), 0, "only the last page leads to the exercises");
@@ -120,7 +120,7 @@ try {
     await page.locator(".lesson-view .page-title", { hasText: "for loops" }).waitFor();
     await page.click("text=← Back");
     await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
-    await page.click(".lesson-view .dot >> nth=2");
+    await page.click(".lesson-view .toc-page >> nth=2");
     await page.locator(".lesson-view .page-title", { hasText: "The % operator" }).waitFor();
     assert.equal(await page.locator(".lesson-view .example").count(), 2);
     assert.equal(await page.locator(".lesson-view", { hasText: "first_and_last" }).count(), 0);
@@ -137,7 +137,7 @@ try {
     assert.doesNotMatch(await page.locator(".task > .md").innerText(), /for example/i, "the Examples box already shows the calls");
     await page.click("text=← Lesson 1: Reading a list");
     await page.locator(".lesson-view .page-title", { hasText: "Indexes" }).waitFor();
-    await page.click(".lesson-view .dot >> nth=-1");
+    await page.click(".lesson-view .toc-page >> nth=-1");
     await page.click("text=Try it yourself");
     await page.locator(".doctest").waitFor();
   });
@@ -356,7 +356,7 @@ try {
     await page.click("#brand");
     await page.click(".plan-item:has-text('Flat plan') >> button.t");
     await page.locator(".lesson-view h2", { hasText: "Flat lesson" }).waitFor();
-    assert.equal(await page.locator(".lesson-view .dot").count(), 0);
+    assert.equal(await page.locator(".lesson-view .toc-page").count(), 0);
     assert.equal(await page.locator(".lesson-view .example").count(), 2);
     await page.getByText("One intro for everything.").waitFor();
     await page.click("text=Try it yourself");
@@ -383,7 +383,7 @@ try {
     assert.equal(await page.locator(".strip .step:not(.lesson)").count(), 4);
     assert.equal(await page.locator(".strip .step.lesson").count(), 2);
     await page.locator("#py-chip", { hasText: "JavaScript ready" }).waitFor();
-    await page.click(".lesson-view .dot >> nth=-1");
+    await page.click(".lesson-view .toc-page >> nth=-1");
     await page.click("text=Try it yourself");
     assert.equal(await page.locator(".doctest").innerText(), "> lastItem([4, 7, 9])\n9\n> lastItem(['a', 'b'])\n'b'");
     assert.equal(await page.locator(".editor-head span").first().innerText(), "solution.js");
@@ -451,7 +451,7 @@ try {
     await p.locator(".strip .step").first().waitFor({ timeout: 60000 });
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "lesson overflows");
     if (shots) await p.screenshot({ path: path.join(shots, "phone-lesson-dark.png"), fullPage: true });
-    await p.click(".lesson-view .dot >> nth=-1");
+    await p.click(".lesson-view .toc-page >> nth=-1");
     await p.click("text=Try it yourself");
     await p.locator(".doctest").waitFor();
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "exercise overflows");

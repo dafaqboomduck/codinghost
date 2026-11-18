@@ -11,6 +11,7 @@ const S = {
   hints: {},           // ex id -> [{level, question, text, streaming, error}]
   confirm: null,       // "reset" | "solution" | null
   showSolution: {},    // ex id -> true
+  lessonSeen: {},      // lesson id -> furthest page index opened this session
   tutorOpen: {},       // ex id -> true once "Ask the tutor" opened the question field
   outTab: "tests",     // "tests" | "output": the tab shown in the tray under the editor
   running: false,

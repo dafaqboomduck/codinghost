@@ -11,6 +11,8 @@ const S = {
   hints: {},           // ex id -> [{level, question, text, streaming, error}]
   confirm: null,       // "reset" | "solution" | null
   showSolution: {},    // ex id -> true
+  tutorOpen: {},       // ex id -> true once "Ask the tutor" opened the question field
+  outTab: "tests",     // "tests" | "output": the tab shown in the tray under the editor
   running: false,
   helping: false,
   reviews: {},         // ex id -> {text, streaming, error} for the review being fetched (saved ones live in progress)

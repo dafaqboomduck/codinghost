@@ -230,9 +230,11 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .steps .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 
 /* Exercise */
-.strip { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.course-name { display: flex; gap: 10px; align-items: center; min-width: 0; }
-.course-title { font-size: 22px; overflow-wrap: anywhere; }
+.strip { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.course-name { display: flex; gap: 6px; align-items: baseline; min-width: 0; font-size: 14px; }
+/* A quiet line, so the exercise title below is the page heading. */
+.course-title { font: 500 14px var(--font-body); overflow-wrap: anywhere; }
+.course-level { color: var(--muted); white-space: nowrap; }
 .course-progress { display: flex; gap: 12px; align-items: center; }
 .count { font: 600 12px var(--font-mono); color: var(--muted); padding: 2px 8px; border-radius: 999px; background: var(--sunken); white-space: nowrap; }
 .track { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
@@ -253,9 +255,13 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .step.lesson.done { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
 .step.lesson.current { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .step.lesson.locked { opacity: .45; }
-.ex-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
-.side { display: grid; gap: 12px; min-width: 0; }
+/* Exercise: the task sits on the page with no card; the editor box is the only framed object. */
+.ex-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 40px; align-items: start; }
+.side { display: grid; gap: 0; min-width: 0; }
 .task { display: grid; gap: 14px; }
+.task h2 { font-size: 28px; font-weight: 400; letter-spacing: -.015em; line-height: 1.15; }
+.task h3 { font: 500 13px var(--font-body); color: var(--muted); }
+.task .doctest { border: 0; background: var(--sunken); }
 .lesson-view { display: grid; gap: 16px; max-width: 820px; }
 .examples { display: grid; gap: 14px; }
 .example { margin: 0; display: grid; gap: 6px; }
@@ -267,7 +273,7 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 .dot { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
 .dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
 .dot.current::before { background: var(--accent); }
-.back-link { justify-self: start; padding-inline: 0; font-size: 13px; }
+.back-link { justify-self: start; font-size: 13px; font-weight: 400; }
 .md { display: grid; gap: 10px; max-width: 65ch; overflow-wrap: anywhere; }
 .md p, .md ul, .md ol { margin: 0; }
 .md ul, .md ol { padding-left: 22px; }
@@ -280,21 +286,39 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
   padding: 10px 12px; font: 13px/1.6 var(--font-mono); overflow-x: auto; white-space: pre;
 }
 .doctest .ps { color: var(--muted); user-select: none; }
-.work { display: grid; gap: 12px; min-width: 0; }
-.editor-box { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--code-bg); }
-.editor-head { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font: 12px var(--font-mono); color: var(--muted); background: var(--surface); }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.work { min-width: 0; border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; background: var(--sunken); }
+.editor-head { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); font: 12px var(--font-mono); color: var(--muted); background: var(--code-bg); }
+.linkish.quiet { color: var(--muted); font-weight: 400; }
+.linkish.quiet:hover { color: var(--fg); }
+.editor-head .linkish { font-size: 12px; }
+/* Tray under the editor: Tests / Output tabs on the left, the run buttons on the right. */
+.tray { border-top: 1px solid var(--border-strong); }
+.tray-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 8px 0 14px; }
+.out-tabs { display: flex; gap: 4px; align-self: stretch; }
+.out-tab { font: 13px var(--font-body); color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 8px 10px; cursor: pointer; white-space: nowrap; }
+.out-tab:hover { color: var(--fg); }
+.out-tab.on { color: var(--fg); font-weight: 500; border-bottom-color: var(--accent); }
+.out-tab .mark { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.out-tab .mark.ok { color: var(--ok); }
+.out-tab .mark.bad { color: var(--bad); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 8px; }
+.actions .btn { padding: 8px 12px; }
+.tray-body { padding: 6px 14px 14px; display: grid; gap: 10px; }
+.tray-body > #ed-notes:empty { display: none; }
+.out-empty { font-size: 13px; padding: 4px 0; }
 .confirm { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 12px; background: var(--warn-soft); color: var(--warn); border-radius: var(--radius-sm); font-size: 14px; }
 
 .out { display: grid; gap: 10px; }
-.out-summary { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-weight: 600; }
+.out-summary { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+/* Plain colored word, not a pill: the tray is already a box. */
+.out-summary .chip { padding: 0; background: none; font-size: 14px; font-weight: 600; }
 .out-summary .ms { font: 12px var(--font-mono); color: var(--muted); font-weight: 400; }
-.tests { display: grid; gap: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.test { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 9px 12px; border-top: 1px solid var(--border); background: var(--surface); }
+.tests { display: grid; }
+.test { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); }
 .test:first-child { border-top: 0; }
-.test .icon { font: 600 13px var(--font-mono); width: 22px; height: 22px; border-radius: 4px; display: grid; place-items: center; }
-.test.pass .icon { background: var(--ok-soft); color: var(--ok); }
-.test.fail .icon, .test.error .icon, .test.invalid .icon { background: var(--bad-soft); color: var(--bad); }
+.test .icon { font: 600 13px/1.5 var(--font-mono); }
+.test.pass .icon { color: var(--ok); }
+.test.fail .icon, .test.error .icon, .test.invalid .icon { color: var(--bad); }
 .test .call { font: 13px var(--font-mono); overflow-wrap: anywhere; }
 .test .detail { font: 12px/1.5 var(--font-mono); color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
 .term {
@@ -303,15 +327,22 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: 2
 }
 .term.err { color: var(--bad); }
 
-.tutor { display: grid; gap: 12px; }
+/* Help under the task, after a hairline: the plan's hint has an accent rule, tutor replies a grey one. */
+.tutor { display: grid; gap: 14px; border-top: 1px solid var(--border); padding-top: 18px; margin-top: 22px; }
+.tutor:empty { display: none; }
 .tutor-ask { display: flex; gap: 8px; flex-wrap: wrap; }
 .tutor-ask input { flex: 1 1 220px; }
-.hint { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--accent-soft); }
-.hint .who { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+.help-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.help-link { display: inline-flex; align-items: center; gap: 6px; }
+.help-note { font-size: 13px; margin-top: -6px; }
+.hint { display: grid; gap: 4px; padding: 2px 0 2px 14px; border-left: 2px solid var(--accent); font-size: 14px; }
+.hint .who { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); }
+.hint.tutor-reply { border-left-color: var(--border-strong); }
+.hint.tutor-reply .who { color: var(--fg); }
 .hint .q { font-size: 13px; color: var(--muted); }
 .hint.streaming .body::after { content: "▍"; color: var(--accent); }
 .hint .body { min-width: 0; }
-.hint.review { background: var(--ok-soft); }
+.hint.review { border-left-color: var(--ok); }
 .hint.review .who { color: var(--ok); }
 
 .done-banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); font-weight: 600; }
@@ -362,11 +393,12 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket { color: var(--bad); }
 /* Single column: phones, and claude.ai's chat side panel (roughly 8:9). Task, editor and results
    stack, so the editor grows with the code instead of a fixed height that pushes Run below the fold. */
 @media (max-width: 900px) {
-  .ex-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .ex-grid { grid-template-columns: minmax(0, 1fr); }
   main.wrap { padding-block: 20px 48px; }
   .home-head { margin-top: 4px; }
   .home-head h1 { font-size: 32px; }
-  .strip { margin-bottom: 14px; }
+  .strip { margin-bottom: 20px; }
+  .ex-grid { gap: 24px; }
   .panel { padding: 16px; }
   .task { gap: 12px; }
   .CodeMirror { height: auto; }
@@ -403,6 +435,12 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket { color: var(--bad); }
   h2 { font-size: 20px; }
   .topbar .wrap { min-height: 48px; gap: 4px 12px; }
   .actions .btn .kbd { display: none; }
+  .task h2 { font-size: 24px; }
+  /* Run / Submit get their own full-width row above the tabs, within thumb reach. */
+  .tray-head { padding-left: 8px; }
+  .tray-head .spacer { display: none; }
+  .actions { order: -1; flex-basis: 100%; padding: 2px 0 6px; }
+  .actions .btn { flex: 1; justify-content: center; padding-block: 11px; }
   .stats { grid-template-columns: minmax(0, 1fr); }
   /* Shorter connectors so 3 lessons and 6 exercises still fit on one line */
   .track .seg { width: 7px; }

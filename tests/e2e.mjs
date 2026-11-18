@@ -213,13 +213,21 @@ try {
     assert.ok(Date.now() - t0 < 1000, "run took " + (Date.now() - t0) + " ms");
   });
 
-  await step("help shows the plan's hint first, then streams one from Claude", async () => {
-    await page.click("button:has-text('Help me')");
+  await step("help: the plan's hint first, then two tutor hints, then only the solution", async () => {
+    assert.equal(await page.locator("text=Show solution…").count(), 0, "solution waits for the free hint");
+    assert.equal(await page.locator("text=Ask the tutor").count(), 0, "tutor waits for the free hint");
+    await page.click("text=Stuck? Show the hint");
     await page.locator(".hint .body", { hasText: "remainder" }).waitFor();
-    await page.getByText("Hints used: 1").waitFor();
-    await page.click("button:has-text('Next hint (2 of 3)')");
-    await page.locator(".hint:not(.streaming)", { hasText: "Which variable" }).waitFor({ timeout: 10000 });
-    await page.getByText("Hints used: 2").waitFor();
+    await page.locator("text=Show solution…").waitFor();
+    await page.click("text=Still stuck? Ask the tutor");
+    await page.click(".tutor-ask button:has-text('Ask')");
+    await page.locator(".hint.tutor-reply:not(.streaming)", { hasText: "Which variable" }).waitFor({ timeout: 10000 });
+    await page.getByText("1 tutor hint left").waitFor();
+    await page.click(".tutor-ask button:has-text('Ask')");
+    await page.locator(".hint.tutor-reply:not(.streaming) >> nth=1").waitFor({ timeout: 10000 });
+    assert.equal(await page.locator("#ask").count(), 0, "no tutor hints left");
+    assert.ok(await page.locator("text=Show solution…").isVisible());
+    if (shots) await page.screenshot({ path: path.join(shots, "exercise-help.png"), fullPage: true });
   });
 
   await step("reload resumes the plan, exercise and code", async () => {
@@ -251,15 +259,12 @@ try {
     await page.click("#debug-toggle");
   });
 
-  await step("show solution after 3 failed submits, then the plan completes", async () => {
+  await step("show solution after the free hint, then the plan completes", async () => {
     for (let n = 2; n <= 5; n++) {
       await exStep(n).click();
-      // 3 failing submits make "Show solution" available
       await setCode("def nope():\n    pass\n");
-      for (let k = 0; k < 3; k++) {
-        await page.click("button:has-text('Submit')");
-        await page.locator(".out-summary .ms").waitFor();
-      }
+      // Exercise 2 used its hint in the help step; the rest show it first.
+      if (n > 2) await page.click("text=Stuck? Show the hint");
       await page.click("text=Show solution…");
       await page.click(".confirm >> text=Show solution");
       await page.locator(".eyebrow", { hasText: "Reference solution" }).waitFor();
@@ -391,6 +396,7 @@ try {
     await setCode("function lastItem(items) {\n  console.log('items:', items);\n  return items[items.length - 1];\n}\n");
     await page.click("button:has-text('Submit')");
     await page.locator(".chip", { hasText: "Passed" }).waitFor();
+    await page.click(".out-tab:has-text('Output')");
     assert.match(await page.locator(".out .term").first().innerText(), /^items: \[4, 7, 9\]/);
   });
 

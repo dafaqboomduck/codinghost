@@ -19,6 +19,7 @@ function openExercise(i) {
   S.index = i;
   S.lesson = null;
   S.confirm = null;
+  S.outTab = "tests";
   if (S.progress.current_index !== i || S.progress.current_lesson) { S.progress.current_index = i; S.progress.current_lesson = null; saveProgressSoon(); }
   const ex = S.plan.exercises[i];
   const L = langOf(S.plan);
@@ -39,8 +40,8 @@ function openExercise(i) {
 
   // The lesson stays one click away instead of on screen: recalling it is the practice.
   const lesson = lessonOf(S.plan, ex);
-  const task = h("section", { class: "panel task" },
-    lesson ? h("div", {}, h("button", { class: "btn ghost back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + ": " + lesson.title })) : null,
+  const task = h("section", { class: "task" },
+    lesson ? h("div", {}, h("button", { class: "linkish back-link", type: "button", onclick: () => openLesson(lessonIndex(S.plan, lesson.id)), text: "← Lesson " + (lessonIndex(S.plan, lesson.id) + 1) + ": " + lesson.title })) : null,
     h("p", { class: "eyebrow", text: "Exercise " + (i + 1) + " of " + S.plan.exercises.length + " · " + ex.concept }),
     h("h2", { text: ex.title }),
     md(ex.prompt_md),
@@ -51,13 +52,18 @@ function openExercise(i) {
     ),
   );
 
+  // One framed box: editor on top, a tray under it with the Tests / Output tabs and the run buttons.
   const host = h("div", {});
   const work = h("section", { class: "work" },
-    h("div", { class: "editor-box" }, h("div", { class: "editor-head" }, h("span", { text: L.file }), h("span", { class: "spacer" }), h("span", { text: "Ctrl+Enter runs" })), host),
-    h("div", { id: "actions", class: "stack", style: "gap: 10px" }),
-    h("div", { id: "output", class: "out", "aria-live": "polite" }),
+    h("div", { class: "editor-head" }, h("span", { text: L.file }), h("span", { class: "spacer" }),
+      h("button", { class: "linkish quiet", type: "button", onclick: () => { S.confirm = "reset"; renderActions(); }, text: "Reset code" })),
+    host,
+    h("div", { class: "tray" },
+      h("div", { class: "tray-head" }, h("div", { id: "out-tabs", class: "out-tabs", role: "tablist", "aria-label": "Results" }), h("span", { class: "spacer" }), h("div", { id: "actions", class: "actions" })),
+      h("div", { class: "tray-body" }, h("div", { id: "ed-notes", class: "stack", style: "gap: 10px" }), h("div", { id: "output", class: "out", "aria-live": "polite" })),
+    ),
   );
-  const side = h("div", { class: "side" }, task, h("div", { id: "tutor", class: "panel tutor" }));
+  const side = h("div", { class: "side" }, task, h("div", { id: "tutor", class: "tutor" }));
 
   viewEl.append(strip, h("div", { id: "banner" }), h("div", { class: "ex-grid" }, side, work));
 
@@ -128,7 +134,7 @@ function quoteKey(q, L) {
   };
 }
 
-// Course header: title and level on the left, the track and a done count on the right.
+// Course header: one quiet line with title and level on the left, the track and a done count on the right.
 // It is the only place that shows course-wide progress; the task card names the lesson and exercise.
 // Lesson markers and exercise dots share the dot language of the lesson pages.
 // h() builds HTML elements only, so the icons go in as markup; the strings are constant.
@@ -171,7 +177,7 @@ function renderStrip() {
   const done = countDone(S.plan, S.progress);
   const total = S.plan.exercises.length;
   strip.append(
-    h("div", { class: "course-name" }, h("h1", { class: "course-title", text: S.plan.topic }), h("span", { class: "chip plain", text: S.plan.level })),
+    h("div", { class: "course-name" }, h("h1", { class: "course-title", text: S.plan.topic }), h("span", { class: "course-level", text: "· " + S.plan.level })),
     h("div", { class: "course-progress" }, track,
       h("span", { class: "count tabnum", title: done + " of " + total + " done", "aria-label": done + " of " + total + " exercises done", text: done + "/" + total })),
   );
@@ -213,27 +219,26 @@ function renderBanner() {
 
 function renderActions() {
   const el = document.getElementById("actions");
-  if (!el) return;
+  const notes = document.getElementById("ed-notes");
+  if (!el || !notes) return;
   const ex = S.plan.exercises[S.index];
   const st = exState(ex);
   const L = langOf(S.plan);
   const pyReady = L.runner.status.state === "ready";
   const busy = S.running || !pyReady;
   el.textContent = "";
+  notes.textContent = "";
   const next = S.plan.exercises[S.index + 1];
-  const row = h("div", { class: "actions" },
+  el.append(
     h("button", { class: "btn secondary", type: "button", disabled: busy, onclick: () => doRun(false) }, "Run", h("span", { class: "kbd", text: "Ctrl+↵" })),
     h("button", { class: "btn", type: "button", disabled: busy, onclick: () => doRun(true) }, "Submit", h("span", { class: "kbd", text: "Ctrl+Shift+↵" })),
-    isDone(st) && next ? nextButton(ex, next) : null,
-    h("span", { class: "spacer" }),
-    h("button", { class: "btn ghost", type: "button", onclick: () => { S.confirm = "reset"; renderActions(); }, text: "Reset code" }),
+    isDone(st) && next ? nextButton(ex, next) : "",
   );
-  el.append(row);
   if (!pyReady) {
-    el.append(h("div", { class: "notice " + (L.runner.status.state === "failed" ? "bad" : "warn"), text: L.runner.status.state === "failed" ? L.label + " could not load: " + L.runner.status.detail : "Loading Python… the first load takes a few seconds." }));
+    notes.append(h("div", { class: "notice " + (L.runner.status.state === "failed" ? "bad" : "warn"), text: L.runner.status.state === "failed" ? L.label + " could not load: " + L.runner.status.detail : "Loading Python… the first load takes a few seconds." }));
   }
   if (S.confirm === "reset") {
-    el.append(h("div", { class: "confirm" },
+    notes.append(h("div", { class: "confirm" },
       h("span", { text: "Replace your code with the starter code?" }),
       h("span", { class: "spacer" }),
       h("button", { class: "btn danger", type: "button", onclick: () => { editor.setValue(ex.starter_code); S.confirm = null; renderActions(); saveProgressNow(); }, text: "Reset" }),
@@ -274,7 +279,9 @@ async function doRun(isSubmit) {
   const code = editor.getValue();
   const tests = isSubmit ? ex.tests : ex.tests.filter((t) => !t.hidden);
   S.running = true;
+  S.outTab = "tests";
   renderActions();
+  renderOutputTabs();
   const out = document.getElementById("output");
   out.textContent = "";
   out.append(h("div", { class: "out-summary muted", text: isSubmit ? "Running all tests…" : "Running…" }));
@@ -340,15 +347,43 @@ function unlockNext(i) {
   S.progress.unlocked_index = Math.max(S.progress.unlocked_index || 0, Math.min(i + 1, S.plan.exercises.length - 1));
 }
 
+// Tab marks: failed count or ✓ on Tests after a run, a dot on Output when the code printed something.
+function renderOutputTabs() {
+  const el = document.getElementById("out-tabs");
+  if (!el) return;
+  const ex = S.plan.exercises[S.index];
+  const res = S.running ? null : S.lastRun[ex.id];
+  const results = (res && res.results) || [];
+  const failed = results.filter((r) => r.status !== "pass").length;
+  const bad = !!res && !!(res.error || res.timed_out || failed);
+  el.textContent = "";
+  const tab = (id, label, mark, markClass) => h("button", {
+    class: "out-tab" + (S.outTab === id ? " on" : ""), type: "button", role: "tab", "aria-selected": S.outTab === id ? "true" : "false",
+    onclick: () => { S.outTab = id; renderOutput(); },
+  }, label, mark ? h("span", { class: "mark " + markClass, text: mark }) : "");
+  el.append(
+    tab("tests", "Tests", !res ? "" : bad ? (failed ? failed + "✗" : "!") : "✓", bad ? "bad" : "ok"),
+    tab("output", "Output", res && (res.stdout || res.stderr) ? "•" : "", res && res.stderr ? "bad" : ""),
+  );
+}
+
 function renderOutput() {
   const el = document.getElementById("output");
   if (!el) return;
+  renderOutputTabs();
   const ex = S.plan.exercises[S.index];
   const res = S.lastRun[ex.id];
   const st = exState(ex);
   el.textContent = "";
+  if (S.outTab === "output") {
+    if (res && res.stdout) el.append(h("pre", { class: "term", text: res.stdout }));
+    if (res && res.stderr) el.append(h("pre", { class: "term err", text: res.stderr }));
+    if (!res || (!res.stdout && !res.stderr)) el.append(h("p", { class: "muted out-empty", text: res ? "Your code printed nothing." : "What your code prints shows here." }));
+    return;
+  }
   if (!res) {
     if (isDone(st)) el.append(h("div", { class: "notice ok", text: st.status === "passed" ? "You passed this exercise. Run it again any time." : "Completed with the solution shown." }));
+    else el.append(h("p", { class: "muted out-empty", text: "Run checks the examples. Submit also runs the hidden tests." }));
     return;
   }
   const results = res.results || [];
@@ -362,7 +397,7 @@ function renderOutput() {
   else if (failed) summary = h("span", { class: "chip bad plain", text: "Failing" });
   else summary = h("span", { class: "chip ok plain", text: "Looks good" });
   const counts = results.length ? `${passed} passed${failed ? ", " + failed + " failed" : ""}` : "";
-  el.append(h("div", { class: "out-summary" }, summary, h("span", { class: "tabnum", text: counts }), ms ? h("span", { class: "ms", text: "in " + ms }) : null));
+  el.append(h("div", { class: "out-summary" }, summary, h("span", { class: "tabnum", text: counts }), ms ? h("span", { class: "ms", text: "in " + ms }) : ""));
 
   if (res.submit && res.allPass) {
     const next = S.plan.exercises[S.index + 1];
@@ -397,6 +432,8 @@ function renderOutput() {
     }
     el.append(list);
   }
-  if (res.stdout) el.append(h("div", { class: "stack", style: "gap: 6px" }, h("span", { class: "eyebrow", text: "Printed output" }), h("pre", { class: "term", text: res.stdout })));
-  if (res.stderr) el.append(h("pre", { class: "term err", text: res.stderr }));
+  if (res.stdout || res.stderr) {
+    el.append(h("p", { class: "muted", style: "font-size: 13px" }, "Your code printed something. ",
+      h("button", { class: "linkish", type: "button", style: "font-size: 13px", onclick: () => { S.outTab = "output"; renderOutput(); }, text: "See Output" })));
+  }
 }

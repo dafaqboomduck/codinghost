@@ -1,64 +1,96 @@
+const TUTOR_ICONS = {
+  bulb: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+};
+
+// h() builds elements only, so the constant icon markup goes in through innerHTML.
+function iconLabel(tag, attrs, icon, text) {
+  const el = h(tag, attrs);
+  el.innerHTML = TUTOR_ICONS[icon];
+  el.append(text);
+  return el;
+}
+
+// The plan's hint counts as one of hints_used; everything above it came from Claude.
+function tutorHintsUsed(ex, st) {
+  return Math.max(0, (st.hints_used || 0) - (ex.hint_md && st.hint_shown ? 1 : 0));
+}
+
+// Help comes in steps: the plan's free hint, then up to TUTOR_HINTS from Claude, then only the solution.
+// "Show solution" stays hidden until the free hint is used, so the learner tries the hint first.
 function renderTutor() {
   const el = document.getElementById("tutor");
   if (!el) return;
   const ex = S.plan.exercises[S.index];
   const st = exState(ex);
-  const hints = S.hints[ex.id] || [];
-  const level = Math.min((st.hints_used || 0) + 1, 3);
-  const staticShown = !!(ex.hint_md && st.hint_shown);
-  const staticReady = !!(ex.hint_md && !st.hint_shown);
+  const replies = S.hints[ex.id] || [];
+  const hintShown = !!(ex.hint_md && st.hint_shown);
+  // Plans without a hint start at the tutor step.
+  const hintDone = !ex.hint_md || hintShown;
+  const tutorLeft = Math.max(0, TUTOR_HINTS - tutorHintsUsed(ex, st));
+  const solved = S.showSolution[ex.id] || st.status === "solution_shown";
   const keepQuestion = document.getElementById("ask") ? document.getElementById("ask").value : "";
   el.textContent = "";
-  el.append(h("div", { class: "row" }, h("h3", { text: "Tutor" }), h("span", { class: "spacer" }),
-    ai.available || ex.hint_md ? h("span", { class: "muted tabnum", style: "font-size: 13px", text: "Hints used: " + (st.hints_used || 0) }) : null));
 
   renderReview(el, ex, st);
 
-  if (staticShown) {
-    el.append(h("div", { class: "hint" }, h("span", { class: "who", text: "Hint" }), h("div", { class: "body" }, md(ex.hint_md))));
+  if (hintShown) {
+    el.append(h("div", { class: "hint" }, iconLabel("span", { class: "who" }, "bulb", "Hint"), h("div", { class: "body" }, md(ex.hint_md))));
   }
-
-  for (const hint of hints) {
+  for (const reply of replies) {
     const body = h("div", { class: "body" });
-    if (hint.error) body.append(h("span", { text: hint.error }));
-    else body.append(hint.text ? md(hint.text) : h("span", { class: "muted", text: "Thinking…" }));
-    el.append(h("div", { class: "hint" + (hint.streaming ? " streaming" : "") },
-      h("span", { class: "who", text: "Hint " + hint.level }),
-      hint.question ? h("span", { class: "q", text: "You asked: " + hint.question }) : null,
+    if (reply.error) body.append(h("span", { text: reply.error }));
+    else body.append(reply.text ? md(reply.text) : h("span", { class: "muted", text: "Thinking…" }));
+    el.append(h("div", { class: "hint tutor-reply" + (reply.streaming ? " streaming" : "") },
+      iconLabel("span", { class: "who" }, "chat", "Tutor"),
+      reply.question ? h("span", { class: "q", text: "You asked: " + reply.question }) : null,
       body,
     ));
   }
 
-  if (ai.available) {
-    const input = h("input", { type: "text", id: "ask", maxlength: "500", placeholder: "Optional: ask a specific question", autocomplete: "off", value: keepQuestion });
-    const btn = h("button", { class: "btn secondary", type: "button", disabled: S.helping, text: S.helping ? "Thinking…" : hints.length || staticShown ? "Next hint (" + level + " of 3)" : "Help me" });
-    const ask = () => doHelp(input.value.trim());
-    btn.addEventListener("click", ask);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ask(); } });
-    el.append(h("div", { class: "tutor-ask" }, input, btn));
-  } else {
-    if (staticReady) el.append(h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => doHelp(""), text: "Show hint" })));
-    el.append(h("p", { class: "muted", text: "More help from the tutor needs Claude access, which is off for this page." }));
-  }
-
-  const allowSolution = (st.hints_used || 0) >= SOLUTION_AFTER || (st.attempts || 0) >= SOLUTION_AFTER || st.status === "solution_shown";
-  if (S.showSolution[ex.id] || st.status === "solution_shown") {
+  if (solved) {
     el.append(h("div", { class: "stack", style: "gap: 8px" },
       h("span", { class: "eyebrow", text: "Reference solution" }),
       h("pre", { class: "term", text: ex.reference_solution }),
       h("div", { class: "row" }, h("button", { class: "btn secondary", type: "button", onclick: () => { editor.setValue(ex.reference_solution); editor.focus(); }, text: "Copy into editor" })),
     ));
-  } else if (allowSolution) {
-    if (S.confirm === "solution") {
-      el.append(h("div", { class: "confirm" },
-        h("span", { text: "This marks the exercise as completed with the solution. Show it?" }),
-        h("span", { class: "spacer" }),
-        h("button", { class: "btn", type: "button", onclick: revealSolution, text: "Show solution" }),
-        h("button", { class: "btn secondary", type: "button", onclick: () => { S.confirm = null; renderTutor(); }, text: "Cancel" }),
-      ));
+    return;
+  }
+
+  if (!hintDone) {
+    el.append(h("div", { class: "help-line" }, iconLabel("button", { class: "linkish help-link", type: "button", onclick: () => showStaticHint(ex, st) }, "bulb", "Stuck? Show the hint")));
+    return;
+  }
+
+  // While a reply streams, its hint is not counted yet, so the field stays (disabled) until it lands.
+  if (ai.available && tutorLeft > 0) {
+    if (S.tutorOpen[ex.id] || replies.length) {
+      const input = h("input", { type: "text", id: "ask", maxlength: "500", placeholder: "Optional: ask a specific question", autocomplete: "off", value: keepQuestion });
+      const btn = h("button", { class: "btn secondary", type: "button", disabled: S.helping, text: S.helping ? "Thinking…" : "Ask" });
+      const ask = () => doHelp(input.value.trim());
+      btn.addEventListener("click", ask);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ask(); } });
+      el.append(h("div", { class: "tutor-ask" }, input, btn));
+      el.append(h("p", { class: "muted help-note tabnum", text: tutorLeft + " tutor hint" + (tutorLeft > 1 ? "s" : "") + " left. Leave the question empty for a nudge." }));
     } else {
-      el.append(h("div", { class: "row" }, h("button", { class: "btn ghost", type: "button", onclick: () => { S.confirm = "solution"; renderTutor(); }, text: "Show solution…" })));
+      el.append(h("div", { class: "help-line" }, iconLabel("button", {
+        class: "linkish help-link", type: "button",
+        onclick: () => { S.tutorOpen[ex.id] = true; renderTutor(); const a = document.getElementById("ask"); if (a) a.focus(); },
+      }, "chat", ex.hint_md ? "Still stuck? Ask the tutor" : "Stuck? Ask the tutor")));
     }
+  } else if (!ai.available && tutorLeft > 0) {
+    el.append(h("p", { class: "muted help-note", text: "The tutor needs Claude access, which is off for this page." }));
+  }
+
+  if (S.confirm === "solution") {
+    el.append(h("div", { class: "confirm" },
+      h("span", { text: "This marks the exercise as completed with the solution. Show it?" }),
+      h("span", { class: "spacer" }),
+      h("button", { class: "btn", type: "button", onclick: revealSolution, text: "Show solution" }),
+      h("button", { class: "btn secondary", type: "button", onclick: () => { S.confirm = null; renderTutor(); }, text: "Cancel" }),
+    ));
+  } else {
+    el.append(h("div", { class: "help-line" }, h("button", { class: "linkish quiet", type: "button", onclick: () => { S.confirm = "solution"; renderTutor(); }, text: "Show solution…" })));
   }
 }
 
@@ -77,7 +109,7 @@ function revealSolution() {
   renderTutor();
 }
 
-// The plan's own hint comes first: it is free and instant. A typed question skips it, since it does not answer anything.
+// The plan's own hint comes first: it is free and instant.
 function showStaticHint(ex, st) {
   dbg.log("help", { exercise: ex.id, level: 1, static: true });
   st.hint_shown = true;
@@ -91,7 +123,7 @@ async function doHelp(question) {
   const ex = S.plan.exercises[S.index];
   const st = exState(ex);
   if (!question && ex.hint_md && !st.hint_shown) return showStaticHint(ex, st);
-  if (!ai.available) return;
+  if (!ai.available || TUTOR_HINTS - tutorHintsUsed(ex, st) <= 0) return;
   const level = Math.min((st.hints_used || 0) + 1, 3);
   dbg.log("help", { exercise: ex.id, level, question: !!question });
   const hint = { level, question, text: "", streaming: true, error: null };

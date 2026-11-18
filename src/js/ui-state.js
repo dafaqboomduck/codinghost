@@ -11,6 +11,9 @@ const S = {
   hints: {},           // ex id -> [{level, question, text, streaming, error}]
   confirm: null,       // "reset" | "solution" | null
   showSolution: {},    // ex id -> true
+  lessonSeen: {},      // lesson id -> furthest page index opened this session
+  tutorOpen: {},       // ex id -> true once "Ask the tutor" opened the question field
+  outTab: "tests",     // "tests" | "output": the tab shown in the tray under the editor
   running: false,
   helping: false,
   reviews: {},         // ex id -> {text, streaming, error} for the review being fetched (saved ones live in progress)
@@ -19,6 +22,7 @@ const S = {
   draft: null,         // {topic, level, count, language} to prefill the new-plan form once
   menu: null,          // plan id whose "⋯" menu is open on home
   undo: null,          // {id, topic} of the plan just archived, for the Undo notice
+  composer: false,     // new-plan box opened on home
   showArchived: false, // Archived tab selected on home
 };
 let editor = null;

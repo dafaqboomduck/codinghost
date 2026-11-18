@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing List Page</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<style>
+/* CodingHost tokens (src/css/styles.css) */
+:root {
+  --bg: #faf9f5; --surface: #ffffff; --sunken: #f0eee6; --fg: #141413; --muted: #73726c;
+  --border: rgba(31, 30, 29, .15); --border-strong: rgba(31, 30, 29, .3);
+  --accent: #c6613f; --accent-fg: #ffffff; --accent-soft: #f6e5dc;
+  --ok: #3f7a2f; --ok-soft: #e4eedb; --bad: #b53333; --bad-soft: #f7e1df; --warn: #8a5a00; --warn-soft: #f5ead2;
+  --shadow: 0 1px 3px rgba(31, 30, 29, .06), 0 4px 16px rgba(31, 30, 29, .04);
+  --font-display: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 12px; --radius-sm: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #262624; --surface: #30302e; --sunken: #1f1e1d; --fg: #faf9f5; --muted: #9c9a92;
+    --border: rgba(222, 220, 209, .15); --border-strong: rgba(222, 220, 209, .3);
+    --accent: #d97757; --accent-fg: #ffffff; --accent-soft: #4a3229;
+    --ok: #8cc265; --ok-soft: #2c3a24; --bad: #f08a80; --bad-soft: #4a2a27; --warn: #e3b25a; --warn-soft: #43361e;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 4px 16px rgba(0, 0, 0, .15);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #262624; --surface: #30302e; --sunken: #1f1e1d; --fg: #faf9f5; --muted: #9c9a92;
+  --border: rgba(222, 220, 209, .15); --border-strong: rgba(222, 220, 209, .3);
+  --accent: #d97757; --accent-fg: #ffffff; --accent-soft: #4a3229;
+  --ok: #8cc265; --ok-soft: #2c3a24; --bad: #f08a80; --bad-soft: #4a2a27; --warn: #e3b25a; --warn-soft: #43361e;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 4px 16px rgba(0, 0, 0, .15);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+
+/* ---------- Switcher bar (not part of any design) ---------- */
+.sw {
+  position: sticky; top: 0; z-index: 50; height: 34px; display: flex; align-items: center; gap: 2px;
+  padding: 0 10px; background: var(--fg); color: var(--bg); font-size: 12.5px; overflow-x: auto; white-space: nowrap;
+}
+.sw button { background: none; border: 0; color: inherit; opacity: .6; padding: 5px 9px; border-radius: 5px; cursor: pointer; }
+.sw button:hover { opacity: .9; }
+.sw button[aria-pressed="true"] { opacity: 1; background: rgba(127, 127, 127, .28); }
+.sw .gap { flex: 1; min-width: 12px; }
+.sw .sep { width: 1px; height: 14px; background: currentColor; opacity: .25; margin: 0 6px; }
+.sw .note { opacity: .55; padding: 0 8px; }
+
+/* Stage: full width, or a 390px phone column. Designs use @container so both work in one window. */
+.stage { container-type: inline-size; min-height: calc(100vh - 34px); margin: 0 auto; background: var(--bg); }
+.stage.phone { max-width: 390px; border-inline: 1px dashed var(--border-strong); }
+.design { display: none; }
+.design.on { display: block; }
+
+/* Shared bits */
+.wrapx { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+@container (max-width: 600px) { .wrapx { padding: 0 16px; } }
+.brand { font-family: var(--font-display); font-weight: 500; font-size: 18px; letter-spacing: -.01em; }
+.brand span { color: var(--accent); }
+.muted { color: var(--muted); }
+.tab { font-variant-numeric: tabular-nums; }
+.dots-btn { background: none; border: 0; padding: 4px 6px; border-radius: 6px; color: var(--muted); cursor: pointer; line-height: 0; }
+.dots-btn:hover { background: var(--sunken); color: var(--fg); }
+.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.textsel, select.slot { field-sizing: content; }
+.textsel { appearance: none; border: 0; background: none; padding: 2px 16px 2px 0; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 5px center, right 1px center; background-size: 4px 4px; background-repeat: no-repeat; }
+.textsel:focus-visible, .linkbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); }
+.linkbtn.on { color: var(--fg); }
+.linkbtn:hover { color: var(--fg); }
+
+
+/* ======== Plans list: design 1's styling, shared by every idea ======== */
+.pl-head { display: flex; gap: 16px; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--border); align-items: baseline; }
+.pl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.pl-row:hover .t { color: var(--accent); }
+.pl-row .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-row .m { font-size: 13px; color: var(--muted); }
+.pl-row .dots-btn { opacity: 0; }
+.pl-row:hover .dots-btn, .pl-row .dots-btn:focus-visible { opacity: 1; }
+.pl-row .bar { grid-column: 1 / -1; height: 2px; background: var(--sunken); margin-top: -6px; }
+.pl-row .bar i { display: block; height: 100%; background: var(--ok); }
+@container (max-width: 600px) { .pl-row .dots-btn { opacity: 1; } }
+.pl-empty { font-size: 14px; color: var(--muted); padding: 14px 0; border-bottom: 1px solid var(--border); }
+
+/* Pills and stepper, used by several ideas */
+.pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.pills button { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.pills button:hover { color: var(--fg); border-color: var(--border-strong); }
+.pills button.on { color: var(--fg); border-color: var(--fg); }
+.step { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; color: var(--muted); }
+.step button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--fg); line-height: 1; }
+.step button:hover { border-color: var(--border-strong); }
+.step b { font-weight: 500; color: var(--fg); min-width: 20px; text-align: center; }
+
+/* ======== B. The list is the page ======== */
+.dB .col { max-width: 680px; margin: 0 auto; padding: 0 24px 64px; }
+.dB .top { display: flex; align-items: center; height: 60px; }
+.dB .top .new { margin-left: auto; background: none; border: 0; color: var(--accent); font-weight: 500; cursor: pointer; font-size: 14px; }
+.dB h1 { font-family: var(--font-display); font-weight: 400; font-size: 40px; letter-spacing: -.02em; margin: 64px 0 28px; }
+.dB .composer { background: var(--sunken); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 22px; display: grid; gap: 12px; }
+.dB .composer input { border: 0; outline: 0; background: none; font-size: 17px; padding: 4px 0; min-width: 0; }
+.dB .composer .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+.dB .composer .row .sp { flex: 1; }
+.dB .composer .go { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 999px; padding: 7px 16px; font-weight: 500; cursor: pointer; }
+.dB .composer .x { background: none; border: 0; color: var(--muted); cursor: pointer; }
+.dB .lede { color: var(--muted); max-width: 50ch; margin: -12px 0 28px; }
+@container (max-width: 600px) { .dB .col { padding: 0 16px 48px; } .dB h1 { font-size: 30px; margin-top: 32px; } }
+
+/* Small popover for ⋯, shared */
+.pop { position: absolute; z-index: 20; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; display: grid; }
+.pop button { text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.pop button:hover { background: var(--sunken); }
+.pop button.bad { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<nav class="sw" aria-label="Design switcher">
+  <span class="note" style="opacity:1">B · List is the page</span>
+  <span class="gap"></span>
+  <span class="note" id="sw-note"></span>
+  <span class="sep"></span>
+  <button type="button" id="sw-phone" aria-pressed="false">Phone</button>
+  <button type="button" id="sw-empty" aria-pressed="false">New user</button>
+  <button type="button" id="sw-theme">Dark</button>
+</nav>
+
+<div class="stage" id="stage"></div>
+
+<script>
+const PLANS = [
+  { topic: "Python lists", lang: "Python", level: "beginner", done: 3, total: 6 },
+  { topic: "Recursion and memoization with dictionaries of partial results", lang: "Python", level: "intermediate", done: 1, total: 7 },
+  { topic: "JavaScript arrays and loops", lang: "JavaScript", level: "beginner", done: 0, total: 6 },
+];
+const ARCHIVED = [
+  { topic: "String formatting", lang: "Python", level: "beginner", done: 6, total: 6 },
+  { topic: "Regular expressions", lang: "JavaScript", level: "advanced", done: 2, total: 8 },
+];
+const NOTES = {
+  A: "Form lives in a left margin like a notebook; plans fill the page.",
+  B: "Plans are the page. “+ New plan” opens a composer on top of the list.",
+  C: "One chat-style box: describe the topic, pick options in its toolbar.",
+  D: "App layout: plans in a sidebar, a calm empty canvas for the next plan.",
+};
+
+const state = { d: "B", archived: false, empty: false, composer: false };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const DOTS = '<svg class="ico" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>';
+const ARROW = '<svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>';
+const UP = '<svg class="ico" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>';
+const dots = (p) => `<button class="dots-btn" type="button" data-menu aria-label="More actions for ${esc(p.topic)}">${DOTS}</button>`;
+const sel = (opts, cls = "textsel") => `<select class="${cls}">${opts.map((o) => `<option${String(o).startsWith("6") ? " selected" : ""}>${o}</option>`).join("")}</select>`;
+const pills = (opts, on = 0) => `<span class="pills" data-pills>${opts.map((o, i) => `<button type="button" class="${i === on ? "on" : ""}">${o}</button>`).join("")}</span>`;
+const stepper = () => `<span class="step"><button type="button" data-step="-1" aria-label="Fewer">−</button><b data-n>6</b><button type="button" data-step="1" aria-label="More">+</button>&nbsp;exercises</span>`;
+const LANGS = ["Python", "JavaScript"], LEVELS = ["Beginner", "Intermediate", "Advanced"], COUNTS = ["5 exercises", "6 exercises", "7 exercises", "8 exercises"];
+const brand = `<span class="brand">Coding<span>Host</span></span>`;
+
+// Design 1's plan list, the part that stays. emptyText shows for a new user.
+function plansList(emptyText, extraHead = "") {
+  if (state.empty) return `<section class="pl"><div class="pl-head"><span>Your plans</span></div><p class="pl-empty">${emptyText}</p></section>`;
+  const rows = state.archived ? ARCHIVED : PLANS;
+  return `<section class="pl">
+    <div class="pl-head">
+      <button class="linkbtn ${state.archived ? "" : "on"}" data-arch="0">Active ${PLANS.length}</button>
+      <button class="linkbtn ${state.archived ? "on" : ""}" data-arch="1">Archived ${ARCHIVED.length}</button>${extraHead}
+    </div>
+    ${rows.map((p) => `<div class="pl-row"><span class="t">${esc(p.topic)}</span><span class="m tab">${p.done}/${p.total} · ${p.lang}</span>${dots(p)}<div class="bar"><i style="width:${p.done / p.total * 100}%"></i></div></div>`).join("")}
+  </section>`;
+}
+
+const D = {
+  B: () => {
+    const open = state.composer || state.empty;
+    const composer = `<form class="composer" onsubmit="return false">
+      <input placeholder="Topic, e.g. Python dictionaries" aria-label="Topic" ${open && !state.empty ? "autofocus" : ""}>
+      <div class="row">${sel(LANGS)} ${sel(LEVELS)} ${sel(COUNTS)}<span class="sp"></span>${state.empty ? "" : `<button class="x" type="button" data-composer="0">Cancel</button>`}<button class="go">Generate</button></div>
+    </form>`;
+    return `<div class="design dB on"><div class="col">
+      <div class="top">${brand}${state.empty ? "" : `<button class="new" data-composer="1">+ New plan</button>`}</div>
+      <h1>${state.empty ? "Start your first plan" : "Your plans"}</h1>
+      ${state.empty ? `<p class="lede">Name a topic. Claude writes a short set of exercises for your level, each with tests that run in your browser.</p>` : ""}
+      ${open ? composer : ""}
+      ${state.empty ? "" : plansList("")}
+    </div></div>`;
+  },
+};
+
+const stage = document.getElementById("stage");
+function render() {
+  stage.innerHTML = D[state.d]();
+  document.querySelectorAll(".sw [data-d]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === state.d)));
+  document.getElementById("sw-note").textContent = NOTES[state.d];
+  document.getElementById("sw-empty").setAttribute("aria-pressed", String(state.empty));
+  const f = stage.querySelector("[autofocus]"); if (f) f.focus();
+}
+
+document.querySelector(".sw").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (false) { state.d = b.dataset.d; history.replaceState(null, "", "#" + state.d); state.archived = false; state.composer = false; }
+  if (b.id === "sw-phone") { const on = stage.classList.toggle("phone"); b.setAttribute("aria-pressed", String(on)); }
+  if (b.id === "sw-empty") state.empty = !state.empty;
+  if (b.id === "sw-theme") {
+    const r = document.documentElement;
+    const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark";
+    b.textContent = dark ? "Dark" : "Light";
+  }
+  render();
+});
+
+let pop = null;
+const closePop = () => { if (pop) { pop.remove(); pop = null; } };
+stage.addEventListener("click", (e) => {
+  const arch = e.target.closest("[data-arch]");
+  if (arch) { state.archived = arch.dataset.arch === "1"; closePop(); render(); return; }
+  const comp = e.target.closest("[data-composer]");
+  if (comp) { state.composer = comp.dataset.composer === "1"; render(); return; }
+  const pill = e.target.closest("[data-pills] button");
+  if (pill) { pill.parentElement.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === pill)); return; }
+  const step = e.target.closest("[data-step]");
+  if (step) { const n = step.parentElement.querySelector("[data-n]"); n.textContent = Math.min(8, Math.max(5, Number(n.textContent) + Number(step.dataset.step))); return; }
+  const m = e.target.closest("[data-menu]");
+  closePop();
+  if (!m) return;
+  e.stopPropagation();
+  const r = m.getBoundingClientRect();
+  pop = document.createElement("div");
+  pop.className = "pop";
+  pop.innerHTML = `<button>${state.archived ? "Restore" : "Archive"}</button><button class="bad">Delete…</button>`;
+  pop.style.top = (r.bottom + scrollY + 4) + "px";
+  pop.style.left = Math.max(8, r.right + scrollX - 160) + "px";
+  document.body.append(pop);
+});
+document.addEventListener("click", (e) => { if (pop && !pop.contains(e.target)) closePop(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+
+render();
+</script>
+</body>
+</html>
